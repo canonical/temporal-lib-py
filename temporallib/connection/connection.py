@@ -74,9 +74,7 @@ class Connection:
             static_headers.update(auth_header_provider.get_headers())
 
         if client_opt.encryption:
-            encryption_codec = EncryptionPayloadCodec(
-                client_opt.encryption.key.encode()
-            )
+            encryption_codec = EncryptionPayloadCodec(client_opt.encryption.key)
             data_converter = dataclasses.replace(
                 data_converter, payload_codec=encryption_codec
             )

@@ -42,7 +42,7 @@ host: 'localhost:7233'
 queue: 'test-queue'
 namespace: 'test'
 encryption:
-  key: '1234567812345678'
+  key: 'HLCeMJLLiyLrUOukdThNgRfyraIXZk918rtp5VX/uwI='
 auth:
   macaroon_url: 'http://localhost:7888/macaroon'
   username: 'test'
