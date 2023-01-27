@@ -27,13 +27,13 @@ from temporallib.auth import AuthOptions, KeyPair
 from temporallib.encryption import EncryptionOptions
 async def main():
     # alternatively options could be loaded from a yalm file as the one showed below
-    client_opt = Options(
+    cfg = Options(
         host="localhost:7233",
         auth=AuthOptions(keys=KeyPair(...))
         encryption=EncryptionOptions(key="key")
         ...
     )
-	client = await Connection.connect(client_opt)
+    client = await Connection.connect(cfg)
 	...
 ```
 The structure of the YAML file which can be used to construct the Options is as following:
