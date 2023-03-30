@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 from macaroonbakery import bakery
-from temporalio.workflow_service import WorkflowService
+from temporalio.service import ServiceClient
 
 from temporallib.auth import AuthOptions, KeyPair
 from temporallib.connection import Connection, Options
@@ -19,7 +19,7 @@ async def mock_connect(_):
 async def test_connect(monkeypatch):
     monkeypatch.setattr(requests, "get", mock_get)
     monkeypatch.setattr(bakery, "discharge_all", mock_discharge_all)
-    monkeypatch.setattr(WorkflowService, "connect", mock_connect)
+    monkeypatch.setattr(ServiceClient, "connect", mock_connect)
     opts = Options(
         host="test",
         queue="test queue",
