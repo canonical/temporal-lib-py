@@ -32,7 +32,7 @@ async def test_connect(monkeypatch):
                 public="public key",
             ),
         ),
-        encryption=EncryptionOptions(key="encryption key"),
+        encryption=EncryptionOptions(key="MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg="),
         tls_root_cas="certificate",
     )
 

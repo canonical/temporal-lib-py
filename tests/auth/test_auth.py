@@ -14,6 +14,7 @@ def mock_discharge_all(macaroon, method, key):
 
 def mock_get(url):
     resp = MagicMock()
+    resp.status_code = 200
     resp.text = (
         "eyJtIjp7ImMiOlt7Imk2NCI6IkF3QSIsInY2NCI6Ikh5RS04YTdYRE9tSDl4TFpPdExSQktxRjMzcEtVcGJ3NEpJRU9NaGF1"
         "bUd5ZzZ3ZDNnZlZSLWVITGhIeE5vUFhTOG5zYmVXTS1fbUIxN0Y2YnliWWl2QVhiLW55YjZGWCIsImwiOiJodHRwczovL2Fw"
