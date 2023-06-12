@@ -32,7 +32,7 @@ replace the connect call as follows:
 ### Candid-based authorization
 
 ```python
-from temporallib.connection import Client, Options
+from temporallib.client import Client, Options
 from temporallib.auth import MacaroonAuthOptions, KeyPair
 from temporallib.encryption import EncryptionOptions
 async def main():
@@ -69,7 +69,7 @@ tls_root_cas: |
 ### Google IAM-based authorization
 
 ```python
-from temporallib.connection import Client, Options
+from temporallib.client import Client, Options
 from temporallib.auth import GoogleAuthOptions
 from temporallib.encryption import EncryptionOptions
 async def main():
