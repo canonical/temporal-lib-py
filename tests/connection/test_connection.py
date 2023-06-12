@@ -6,7 +6,7 @@ from macaroonbakery import bakery
 from temporalio.service import ServiceClient
 
 from temporallib.auth import MacaroonAuthOptions, GoogleAuthOptions, KeyPair
-from temporallib.connection import Client, Options
+from temporallib.client import Client, Options
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 from tests.auth.test_auth import mock_discharge_all, mock_get_macaroon, mock_get_token
 from google.oauth2 import service_account
