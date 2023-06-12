@@ -10,8 +10,9 @@ from temporalio.common import QueryRejectCondition
 from temporalio.converter import DataConverter, default
 from temporalio.service import TLSConfig, RetryConfig
 
-from temporallib.auth import AuthHeaderProvider, AuthOptions
+from temporallib.auth import AuthHeaderProvider, MacaroonAuthOptions, GoogleAuthOptions
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
+from typing import Union
 
 
 @dataclass
@@ -25,7 +26,7 @@ class Options:
     namespace: str
     encryption: EncryptionOptions = None
     tls_root_cas: str = None
-    auth: AuthOptions = None
+    auth: Union[MacaroonAuthOptions, GoogleAuthOptions] = None
 
 
 class Connection:
