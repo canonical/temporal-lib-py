@@ -19,7 +19,6 @@ class MacaroonAuthOptions:
     """
     Defines the parameters for authenticating with Candid.
     """
-    provider: str
     macaroon_url: str
     username: str
     keys: KeyPair
@@ -29,7 +28,6 @@ class GoogleAuthOptions:
     """
     Defines the parameters for authenticating with Google IAM.
     """
-    provider: str
     type: str
     project_id: str
     private_key_id: str
@@ -60,16 +58,10 @@ class AuthHeaderProvider:
         self.cfg = cfg
 
     def get_headers(self) -> Mapping[str,str]:
-        if not self.cfg.provider:
-            raise TemporalError("auth provider must be specified")
-        
-        if self.cfg.provider == 'candid':
+        if isinstance(self.cfg, MacaroonAuthOptions):
             return self.get_macaroon_headers()
-        elif self.cfg.provider == 'google':
-            return self.get_google_iam_headers()
         else:
-            raise TemporalError("auth provider not supported. Please specify 'candid' or 'google'")
-
+            return self.get_google_iam_headers()
 
     def get_google_iam_headers(self) -> Mapping[str, str]:
         cfg_dict = asdict(self.cfg)

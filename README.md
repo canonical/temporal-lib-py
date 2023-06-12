@@ -32,18 +32,18 @@ replace the connect call as follows:
 ### Candid-based authorization
 
 ```python
-from temporallib.connection import Connection, Options
+from temporallib.connection import Client, Options
 from temporallib.auth import MacaroonAuthOptions, KeyPair
 from temporallib.encryption import EncryptionOptions
 async def main():
     # alternatively options could be loaded from a yaml file as the one showed below
     cfg = Options(
         host="localhost:7233",
-        auth=MacaroonAuthOptions(provider="candid", keys=KeyPair(...))
+        auth=MacaroonAuthOptions(keys=KeyPair(...))
         encryption=EncryptionOptions(key="key")
         ...
     )
-    client = await Connection.connect(cfg)
+    client = await Client.connect(cfg)
 	...
 ```
 
@@ -57,7 +57,6 @@ namespace: "test"
 encryption:
   key: "HLCeMJLLiyLrUOukdThNgRfyraIXZk918rtp5VX/uwI="
 auth:
-  provider: "candid"
   macaroon_url: "http://localhost:7888/macaroon"
   username: "test"
   keys:
@@ -70,18 +69,18 @@ tls_root_cas: |
 ### Google IAM-based authorization
 
 ```python
-from temporallib.connection import Connection, Options
+from temporallib.connection import Client, Options
 from temporallib.auth import GoogleAuthOptions
 from temporallib.encryption import EncryptionOptions
 async def main():
     # alternatively options could be loaded from a yaml file as the one showed below
     cfg = Options(
         host="localhost:7233",
-        auth=GoogleAuthOptions(provider="google", private_key=...)
+        auth=GoogleAuthOptions(private_key=...)
         encryption=EncryptionOptions(key="key")
         ...
     )
-    client = await Connection.connect(cfg)
+    client = await Client.connect(cfg)
 	...
 ```
 
@@ -95,7 +94,6 @@ namespace: "test"
 encryption:
   key: "HLCeMJLLiyLrUOukdThNgRfyraIXZk918rtp5VX/uwI="
 auth:
-  provider: "google"
   type: "service_account"
   project_id: "REPLACE_WITH_PROJECT_ID"
   private_key_id: "REPLACE_WITH_PRIVATE_KEY_ID"

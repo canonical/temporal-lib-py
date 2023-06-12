@@ -1,1 +1,1 @@
-from temporallib.connection.connection import Connection, Options
+from temporallib.connection.connection import Client, Options

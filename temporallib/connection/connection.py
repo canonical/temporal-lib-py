@@ -29,7 +29,7 @@ class Options:
     auth: Union[MacaroonAuthOptions, GoogleAuthOptions] = None
 
 
-class Connection:
+class Client:
     """
     A class which wraps the :class:`temporalio.client.Client` class
     """

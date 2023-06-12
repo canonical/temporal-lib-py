@@ -46,7 +46,6 @@ def mock_get_token(cfg_dict, scopes):
 
 def test_get_candid_headers(monkeypatch):
     auth_options = MacaroonAuthOptions(
-        provider="candid",
         macaroon_url="test",
         username="test",
         keys=KeyPair(
@@ -62,7 +61,6 @@ def test_get_candid_headers(monkeypatch):
 
 def test_get_google_headers(monkeypatch):
     auth_options = GoogleAuthOptions(
-        provider="google",
         type="service_account",
         project_id="test",
         private_key_id="test",

@@ -6,7 +6,7 @@ from macaroonbakery import bakery
 from temporalio.service import ServiceClient
 
 from temporallib.auth import MacaroonAuthOptions, GoogleAuthOptions, KeyPair
-from temporallib.connection import Connection, Options
+from temporallib.connection import Client, Options
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 from tests.auth.test_auth import mock_discharge_all, mock_get_macaroon, mock_get_token
 from google.oauth2 import service_account
@@ -25,7 +25,6 @@ async def test_connect_candid(monkeypatch):
         queue="test queue",
         namespace="test namespace",
         auth=MacaroonAuthOptions(
-            provider="candid",
             macaroon_url="macaroon url",
             username="test user",
             keys=KeyPair(
@@ -37,7 +36,7 @@ async def test_connect_candid(monkeypatch):
         tls_root_cas="certificate",
     )
 
-    client = await Connection.connect(opts)
+    client = await Client.connect(opts)
     assert client.namespace == opts.namespace
     assert isinstance(client.data_converter.payload_codec, EncryptionPayloadCodec)
 
@@ -50,7 +49,6 @@ async def test_connect_google(monkeypatch):
         queue="test queue",
         namespace="test namespace",
         auth=GoogleAuthOptions(
-            provider="google",
             type="service_account",
             project_id="test",
             private_key_id="test",
@@ -66,6 +64,6 @@ async def test_connect_google(monkeypatch):
         tls_root_cas="certificate",
     )
 
-    client = await Connection.connect(opts)
+    client = await Client.connect(opts)
     assert client.namespace == opts.namespace
     assert isinstance(client.data_converter.payload_codec, EncryptionPayloadCodec)
