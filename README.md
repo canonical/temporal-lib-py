@@ -2,7 +2,8 @@
 
 This library provides a partial wrapper for the _Client.connect_ method from
 [temporalio/sdk-python](https://github.com/temporalio/sdk-python/tree/main/temporalio)
-by adding candid-based authentication and encryption.
+by adding candid-based authentication, Google IAM-based authentication and
+encryption.
 
 ## Building
 
@@ -26,17 +27,19 @@ async def main():
 ```
 
 In order to add authorization and encryption capabilities to this client we
-replace the connect call as following:
+replace the connect call as follows:
+
+### Candid-based authorization
 
 ```python
 from temporallib.connection import Connection, Options
-from temporallib.auth import AuthOptions, KeyPair
+from temporallib.auth import MacaroonAuthOptions, KeyPair
 from temporallib.encryption import EncryptionOptions
 async def main():
     # alternatively options could be loaded from a yaml file as the one showed below
     cfg = Options(
         host="localhost:7233",
-        auth=AuthOptions(keys=KeyPair(...))
+        auth=MacaroonAuthOptions(provider="candid", keys=KeyPair(...))
         encryption=EncryptionOptions(key="key")
         ...
     )
@@ -46,8 +49,6 @@ async def main():
 
 The structure of the YAML file which can be used to construct the Options is as
 follows:
-
-### Candid-based authorization
 
 ```yaml
 host: "localhost:7233"
@@ -67,6 +68,25 @@ tls_root_cas: |
 ```
 
 ### Google IAM-based authorization
+
+```python
+from temporallib.connection import Connection, Options
+from temporallib.auth import GoogleAuthOptions
+from temporallib.encryption import EncryptionOptions
+async def main():
+    # alternatively options could be loaded from a yaml file as the one showed below
+    cfg = Options(
+        host="localhost:7233",
+        auth=GoogleAuthOptions(provider="google", private_key=...)
+        encryption=EncryptionOptions(key="key")
+        ...
+    )
+    client = await Connection.connect(cfg)
+	...
+```
+
+The structure of the YAML file which can be used to construct the Options is as
+follows:
 
 ```yaml
 host: "localhost:7233"
