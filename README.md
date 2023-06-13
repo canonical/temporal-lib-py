@@ -33,13 +33,13 @@ replace the connect call as follows:
 
 ```python
 from temporallib.client import Client, Options
-from temporallib.auth import MacaroonAuthOptions, KeyPair
+from temporallib.auth import AuthOptions, MacaroonAuthOptions, KeyPair
 from temporallib.encryption import EncryptionOptions
 async def main():
     # alternatively options could be loaded from a yaml file as the one showed below
     cfg = Options(
         host="localhost:7233",
-        auth=MacaroonAuthOptions(keys=KeyPair(...))
+        auth=AuthOptions(provider="candid", config=MacaroonAuthOptions(keys=KeyPair(...))),
         encryption=EncryptionOptions(key="key")
         ...
     )
@@ -72,13 +72,13 @@ tls_root_cas: |
 
 ```python
 from temporallib.client import Client, Options
-from temporallib.auth import GoogleAuthOptions
+from temporallib.auth import AuthOptions, GoogleAuthOptions
 from temporallib.encryption import EncryptionOptions
 async def main():
     # alternatively options could be loaded from a yaml file as the one showed below
     cfg = Options(
         host="localhost:7233",
-        auth=GoogleAuthOptions(private_key=...)
+        auth=AuthOptions(provider="google", config=GoogleAuthOptions(private_key=...)),
         encryption=EncryptionOptions(key="key")
         ...
     )
