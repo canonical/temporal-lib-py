@@ -10,17 +10,34 @@ from macaroonbakery import bakery, httpbakery
 from macaroonbakery.bakery import Macaroon, b64decode, macaroon_to_dict
 from macaroonbakery.httpbakery.agent import Agent, AgentInteractor, AuthInfo
 
+from google.oauth2 import service_account
+from typing import Union
+from dataclasses import asdict
 
 @dataclass
-class AuthOptions:
+class MacaroonAuthOptions:
     """
     Defines the parameters for authenticating with Candid.
     """
-
     macaroon_url: str
     username: str
     keys: KeyPair
-
+    
+@dataclass
+class GoogleAuthOptions:
+    """
+    Defines the parameters for authenticating with Google IAM.
+    """
+    type: str
+    project_id: str
+    private_key_id: str
+    private_key: str
+    client_email: str
+    client_id: str
+    auth_uri: str
+    token_uri: str
+    auth_provider_x509_cert_url: str
+    client_x509_cert_url: str
 
 @dataclass
 class KeyPair:
@@ -37,10 +54,22 @@ class AuthHeaderProvider:
     A class to provide the authorization headers to the Temporal client.
     """
 
-    def __init__(self, cfg: AuthOptions):
+    def __init__(self, cfg: Union[MacaroonAuthOptions, GoogleAuthOptions]):
         self.cfg = cfg
 
-    def get_headers(self) -> Mapping[str, str]:
+    def get_headers(self) -> Mapping[str,str]:
+        if isinstance(self.cfg, MacaroonAuthOptions):
+            return self.get_macaroon_headers()
+        else:
+            return self.get_google_iam_headers()
+
+    def get_google_iam_headers(self) -> Mapping[str, str]:
+        cfg_dict = asdict(self.cfg)
+        credentials = service_account.Credentials.from_service_account_info(cfg_dict, scopes=['email', 'profile', 'openid', 'https://www.googleapis.com/auth/admin.directory.group.readonly'])
+
+        return {"authorization": f"Bearer {credentials.token}"}
+
+    def get_macaroon_headers(self) -> Mapping[str, str]:
         """
         Retrieves the macaroon from Temporal server, discharges it and returns the according header.
         :return: A header entry for the authorization field

@@ -1,1 +1,1 @@
-from temporallib.auth.auth import AuthHeaderProvider, AuthOptions, KeyPair
+from temporallib.auth.auth import AuthHeaderProvider, MacaroonAuthOptions, GoogleAuthOptions, KeyPair
