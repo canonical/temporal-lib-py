@@ -44,28 +44,36 @@ class KeyPair:
     """
     A structure for storing agent the key pair.
     """
-
     private: str
     public: str = None
 
+@dataclass
+class AuthOptions:
+    provider: str
+    config: Union[MacaroonAuthOptions, GoogleAuthOptions]
 
 class AuthHeaderProvider:
     """
     A class to provide the authorization headers to the Temporal client.
     """
 
-    def __init__(self, cfg: Union[MacaroonAuthOptions, GoogleAuthOptions]):
-        self.cfg = cfg
+    def __init__(self, auth: AuthOptions):
+        self.auth = auth
 
     def get_headers(self) -> Mapping[str,str]:
-        if isinstance(self.cfg, MacaroonAuthOptions):
+        if not self.auth.provider:
+            raise TemporalError("auth provider must be specified")
+
+        if self.auth.provider == "candid":
             return self.get_macaroon_headers()
-        else:
+        elif self.auth.provider == "google":
             return self.get_google_iam_headers()
+        else:
+            raise TemporalError("auth provider not supported. please specify candid or google.")
 
     def get_google_iam_headers(self) -> Mapping[str, str]:
-        cfg_dict = asdict(self.cfg)
-        credentials = service_account.Credentials.from_service_account_info(cfg_dict, scopes=['email', 'profile', 'openid', 'https://www.googleapis.com/auth/admin.directory.group.readonly'])
+        auth_dict = asdict(self.auth.config)
+        credentials = service_account.Credentials.from_service_account_info(auth_dict, scopes=['email', 'profile', 'openid', 'https://www.googleapis.com/auth/admin.directory.group.readonly'])
 
         return {"authorization": f"Bearer {credentials.token}"}
 
@@ -75,10 +83,10 @@ class AuthHeaderProvider:
         :return: A header entry for the authorization field
         """
         # get the macaroon from temporal server
-        resp = requests.get(self.cfg.macaroon_url)
+        resp = requests.get(self.auth.config.macaroon_url)
         if resp.status_code != 200:
             raise TemporalError(
-                f"error reaching the macaroon server ({self.cfg.macaroon_url})"
+                f"error reaching the macaroon server ({self.auth.config.macaroon_url})"
                 f" response code - {resp.status_code}"
             )
 
@@ -91,8 +99,8 @@ class AuthHeaderProvider:
 
         # set up bakery agent and connection
         auth_info = AuthInfo(
-            key=bakery.PrivateKey.deserialize(self.cfg.keys.private),
-            agents=[Agent(url=auth_url, username=self.cfg.username)],
+            key=bakery.PrivateKey.deserialize(self.auth.config.keys.private),
+            agents=[Agent(url=auth_url, username=self.auth.config.username)],
         )
         client = httpbakery.Client(interaction_methods=[AgentInteractor(auth_info)])
 

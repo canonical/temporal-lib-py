@@ -5,7 +5,7 @@ import requests
 from macaroonbakery import bakery
 from temporalio.service import ServiceClient
 
-from temporallib.auth import MacaroonAuthOptions, GoogleAuthOptions, KeyPair
+from temporallib.auth import AuthOptions, MacaroonAuthOptions, GoogleAuthOptions, KeyPair
 from temporallib.client import Client, Options
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 from tests.auth.test_auth import mock_discharge_all, mock_get_macaroon, mock_get_token
@@ -24,13 +24,15 @@ async def test_connect_candid(monkeypatch):
         host="test",
         queue="test queue",
         namespace="test namespace",
-        auth=MacaroonAuthOptions(
-            macaroon_url="macaroon url",
-            username="test user",
-            keys=KeyPair(
-                private="MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg=",
-                public="public key",
-            ),
+        auth = AuthOptions(
+            provider="candid",
+            config=MacaroonAuthOptions(
+                macaroon_url="test",
+                username="test",
+                keys=KeyPair(
+                    private="MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg=", public="public"
+                ),
+            )
         ),
         encryption=EncryptionOptions(key="MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg="),
         tls_root_cas="certificate",
@@ -48,17 +50,20 @@ async def test_connect_google(monkeypatch):
         host="test",
         queue="test queue",
         namespace="test namespace",
-        auth=GoogleAuthOptions(
-            type="service_account",
-            project_id="test",
-            private_key_id="test",
-            private_key="test",
-            client_email="test",
-            client_id="test",
-            auth_uri="https://accounts.google.com/o/oauth2/auth",
-            token_uri="https://oauth2.googleapis.com/token",
-            auth_provider_x509_cert_url="https://www.googleapis.com/oauth2/v1/certs",
-            client_x509_cert_url="test",
+        auth=AuthOptions(
+            provider="google",
+            config=GoogleAuthOptions(
+                type="service_account",
+                project_id="test",
+                private_key_id="test",
+                private_key="test",
+                client_email="test",
+                client_id="test",
+                auth_uri="https://accounts.google.com/o/oauth2/auth",
+                token_uri="https://oauth2.googleapis.com/token",
+                auth_provider_x509_cert_url="https://www.googleapis.com/oauth2/v1/certs",
+                client_x509_cert_url="test",
+            ),
         ),
         encryption=EncryptionOptions(key="MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg="),
         tls_root_cas="certificate",
