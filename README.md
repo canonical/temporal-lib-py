@@ -33,13 +33,13 @@ replace the connect call as follows:
 
 ```python
 from temporallib.client import Client, Options
-from temporallib.auth import MacaroonAuthOptions, KeyPair
+from temporallib.auth import AuthOptions, MacaroonAuthOptions, KeyPair
 from temporallib.encryption import EncryptionOptions
 async def main():
     # alternatively options could be loaded from a yaml file as the one showed below
     cfg = Options(
         host="localhost:7233",
-        auth=MacaroonAuthOptions(keys=KeyPair(...))
+        auth=AuthOptions(provider="candid", config=MacaroonAuthOptions(keys=KeyPair(...))),
         encryption=EncryptionOptions(key="key")
         ...
     )
@@ -57,11 +57,13 @@ namespace: "test"
 encryption:
   key: "HLCeMJLLiyLrUOukdThNgRfyraIXZk918rtp5VX/uwI="
 auth:
-  macaroon_url: "http://localhost:7888/macaroon"
-  username: "test"
-  keys:
-    private: "MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg="
-    public: "ODc2NTQzMjE4NzY1NDMyMTg3NjU0MzIxODc2NTQzMjE="
+  provider: "candid"
+  config:
+    macaroon_url: "http://localhost:7888/macaroon"
+    username: "test"
+    keys:
+      private: "MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg="
+      public: "ODc2NTQzMjE4NzY1NDMyMTg3NjU0MzIxODc2NTQzMjE="
 tls_root_cas: |
   'base64 certificate'
 ```
@@ -70,13 +72,13 @@ tls_root_cas: |
 
 ```python
 from temporallib.client import Client, Options
-from temporallib.auth import GoogleAuthOptions
+from temporallib.auth import AuthOptions, GoogleAuthOptions
 from temporallib.encryption import EncryptionOptions
 async def main():
     # alternatively options could be loaded from a yaml file as the one showed below
     cfg = Options(
         host="localhost:7233",
-        auth=GoogleAuthOptions(private_key=...)
+        auth=AuthOptions(provider="google", config=GoogleAuthOptions(private_key=...)),
         encryption=EncryptionOptions(key="key")
         ...
     )
@@ -94,16 +96,18 @@ namespace: "test"
 encryption:
   key: "HLCeMJLLiyLrUOukdThNgRfyraIXZk918rtp5VX/uwI="
 auth:
-  type: "service_account"
-  project_id: "REPLACE_WITH_PROJECT_ID"
-  private_key_id: "REPLACE_WITH_PRIVATE_KEY_ID"
-  private_key: "REPLACE_WITH_PRIVATE_KEY"
-  client_email: "REPLACE_WITH_CLIENT_EMAIL"
-  client_id: "REPLACE_WITH_CLIENT_ID"
-  auth_uri: "https://accounts.google.com/o/oauth2/auth"
-  token_uri: "https://oauth2.googleapis.com/token"
-  auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs"
-  client_x509_cert_url: "REPLACE_WITH_CLIENT_CERT_URL"
+  provider: "google"
+  config:
+    type: "service_account"
+    project_id: "REPLACE_WITH_PROJECT_ID"
+    private_key_id: "REPLACE_WITH_PRIVATE_KEY_ID"
+    private_key: "REPLACE_WITH_PRIVATE_KEY"
+    client_email: "REPLACE_WITH_CLIENT_EMAIL"
+    client_id: "REPLACE_WITH_CLIENT_ID"
+    auth_uri: "https://accounts.google.com/o/oauth2/auth"
+    token_uri: "https://oauth2.googleapis.com/token"
+    auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs"
+    client_x509_cert_url: "REPLACE_WITH_CLIENT_CERT_URL"
 tls_root_cas: |
   'base64 certificate'
 ```

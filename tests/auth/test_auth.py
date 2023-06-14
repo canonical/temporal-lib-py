@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import requests
 from macaroonbakery import bakery
 
-from temporallib.auth import AuthHeaderProvider, MacaroonAuthOptions, GoogleAuthOptions, KeyPair
+from temporallib.auth import AuthHeaderProvider, AuthOptions, MacaroonAuthOptions, GoogleAuthOptions, KeyPair
 from google.oauth2 import service_account
 
 
@@ -45,12 +45,15 @@ def mock_get_token(cfg_dict, scopes):
     return resp
 
 def test_get_candid_headers(monkeypatch):
-    auth_options = MacaroonAuthOptions(
-        macaroon_url="test",
-        username="test",
-        keys=KeyPair(
-            private="MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg=", public="public"
-        ),
+    auth_options = AuthOptions(
+        provider="candid",
+        config=MacaroonAuthOptions(
+            macaroon_url="test",
+            username="test",
+            keys=KeyPair(
+                private="MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg=", public="public"
+            ),
+        )
     )
     auth_provider = AuthHeaderProvider(auth_options)
     monkeypatch.setattr(requests, "get", mock_get_macaroon)
@@ -60,17 +63,20 @@ def test_get_candid_headers(monkeypatch):
 
 
 def test_get_google_headers(monkeypatch):
-    auth_options = GoogleAuthOptions(
-        type="service_account",
-        project_id="test",
-        private_key_id="test",
-        private_key="test",
-        client_email="test",
-        client_id="test",
-        auth_uri="https://accounts.google.com/o/oauth2/auth",
-        token_uri="https://oauth2.googleapis.com/token",
-        auth_provider_x509_cert_url="https://www.googleapis.com/oauth2/v1/certs",
-        client_x509_cert_url="test",
+    auth_options = AuthOptions(
+        provider="google",
+        config=GoogleAuthOptions(
+            type="service_account",
+            project_id="test",
+            private_key_id="test",
+            private_key="test",
+            client_email="test",
+            client_id="test",
+            auth_uri="https://accounts.google.com/o/oauth2/auth",
+            token_uri="https://oauth2.googleapis.com/token",
+            auth_provider_x509_cert_url="https://www.googleapis.com/oauth2/v1/certs",
+            client_x509_cert_url="test",
+        )
     )
     auth_provider = AuthHeaderProvider(auth_options)
     monkeypatch.setattr(service_account.Credentials, "from_service_account_info", mock_get_token)
