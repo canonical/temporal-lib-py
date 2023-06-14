@@ -66,10 +66,9 @@ class AuthHeaderProvider:
 
         if self.auth.provider == "candid":
             return self.get_macaroon_headers()
-        elif self.auth.provider == "google":
+        if self.auth.provider == "google":
             return self.get_google_iam_headers()
-        else:
-            raise TemporalError("auth provider not supported. please specify candid or google.")
+        raise TemporalError("auth provider not supported. please specify candid or google.")
 
     def get_google_iam_headers(self) -> Mapping[str, str]:
         auth_dict = asdict(self.auth.config)
