@@ -3,7 +3,8 @@
 This library provides a partial wrapper for the _Client.connect_ method from
 [temporalio/sdk-python](https://github.com/temporalio/sdk-python/tree/main/temporalio)
 by adding candid-based authentication, Google IAM-based authentication and
-encryption.
+encryption. It also provides a partial wrapper for the Temporal Worker by adding
+a Sentry interceptor which can be enabled through config.
 
 ## Building
 
@@ -16,7 +17,9 @@ poetry build -f wheel
 
 ## Usage
 
-The following code shows how a client connection is created using by using the
+### Client
+
+The following code shows how a client connection is created by using the
 original (vanilla) temporalio sdk:
 
 ```python
@@ -29,7 +32,7 @@ async def main():
 In order to add authorization and encryption capabilities to this client we
 replace the connect call as follows:
 
-### Candid-based authorization
+#### Candid-based authorization
 
 ```python
 from temporallib.client import Client, Options
@@ -68,7 +71,7 @@ tls_root_cas: |
   'base64 certificate'
 ```
 
-### Google IAM-based authorization
+#### Google IAM-based authorization
 
 ```python
 from temporallib.client import Client, Options
@@ -110,6 +113,45 @@ auth:
     client_x509_cert_url: "REPLACE_WITH_CLIENT_CERT_URL"
 tls_root_cas: |
   'base64 certificate'
+```
+
+### Worker
+
+The following code shows how a Worker is created by using the original (vanilla)
+temporalio sdk:
+
+```python
+from temporalio.worker import Worker
+from temporalio.client import Client
+async def main():
+    client = await Client.connect("localhost:7233")
+    worker = Worker(
+        client,
+        task_queue=task_queue,
+        workflows=workflows,
+        activities=activities,
+    )
+    await worker.run()
+    ...
+```
+
+In order to add Sentry logging capabilities to this worker we replace the worker
+initialization as follows:
+
+```python
+from temporallib.worker import Worker, WorkerOptions, SentryOptions
+from temporallib.client import Client
+
+client = await Client.connect(cfg)
+worker = Worker(
+    client,
+    task_queue=task_queue,
+    workflows=workflows,
+    activities=activities,
+    worker_opt=WorkerOptions(sentry=SentryOptions(dsn="dsn", release="release", environment="environment")),
+)
+await worker.run()
+
 ```
 
 ## Samples
