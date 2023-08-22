@@ -29,11 +29,11 @@ class Worker(TemporalWorker):
 
     def __init__(
         self,
-        worker_opt: WorkerOptions,
         client: Client,
         task_queue: str,
         workflows: Sequence[Type] = [],
         activities: Sequence[Callable] = [],
+        worker_opt: Optional[WorkerOptions] = None,
         activity_executor: Optional[concurrent.futures.Executor] = None,
         workflow_task_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None,
         workflow_runner: WorkflowRunner = SandboxedWorkflowRunner(),
@@ -63,14 +63,15 @@ class Worker(TemporalWorker):
         if interceptors is None:
             interceptors = []
 
-        if worker_opt.sentry:
-            interceptors.append(SentryInterceptor())
-            sentry_sdk.init(
-                dsn=worker_opt.sentry.dsn,
-                release=worker_opt.sentry.release,
-                environment=worker_opt.sentry.environment,
-                sample_rate=worker_opt.sentry.sample_rate,
-            )
+        if worker_opt:
+            if worker_opt.sentry:
+                interceptors.append(SentryInterceptor())
+                sentry_sdk.init(
+                    dsn=worker_opt.sentry.dsn,
+                    release=worker_opt.sentry.release,
+                    environment=worker_opt.sentry.environment,
+                    sample_rate=worker_opt.sentry.sample_rate,
+                )
 
         super().__init__(
             client=client,
