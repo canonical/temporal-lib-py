@@ -148,11 +148,14 @@ worker = Worker(
     task_queue=task_queue,
     workflows=workflows,
     activities=activities,
-    worker_opt=WorkerOptions(sentry=SentryOptions(dsn="dsn", release="release", environment="environment")),
+    worker_opt=WorkerOptions(sentry=SentryOptions(dsn="dsn", release="release", environment="environment", redact_params=True)),
 )
 await worker.run()
 
 ```
+
+Note that you can optionally enable parameter redaction to hide event parameters
+that are sent to Sentry.
 
 ## Samples
 

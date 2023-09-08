@@ -6,4 +6,5 @@ from temporallib.worker.worker import (
 from temporallib.worker.sentry_interceptor import (
     SentryOptions,
     SentryInterceptor,
+    redact_params,
 )
