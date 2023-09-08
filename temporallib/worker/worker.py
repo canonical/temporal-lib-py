@@ -70,14 +70,17 @@ class Worker(TemporalWorker):
         if worker_opt:
             if worker_opt.sentry:
                 interceptors.append(SentryInterceptor())
+
+                before_send = None
+                if worker_opt.sentry.redact_params:
+                    before_send = redact_params
+
                 sentry_sdk.init(
                     dsn=worker_opt.sentry.dsn,
                     release=worker_opt.sentry.release,
                     environment=worker_opt.sentry.environment,
                     sample_rate=worker_opt.sentry.sample_rate,
-                    before_send=redact_params
-                    if worker_opt.sentry.redact_params
-                    else None,
+                    before_send=before_send,
                 )
 
         super().__init__(
