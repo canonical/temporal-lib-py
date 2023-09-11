@@ -13,7 +13,11 @@ from temporalio.client import Interceptor, OutboundInterceptor
 from collections import defaultdict
 
 from temporallib.client import Client
-from temporallib.worker.sentry_interceptor import SentryInterceptor, SentryOptions
+from temporallib.worker.sentry_interceptor import (
+    SentryInterceptor,
+    SentryOptions,
+    redact_params,
+)
 import sentry_sdk
 
 
@@ -66,11 +70,17 @@ class Worker(TemporalWorker):
         if worker_opt:
             if worker_opt.sentry:
                 interceptors.append(SentryInterceptor())
+
+                before_send = None
+                if worker_opt.sentry.redact_params:
+                    before_send = redact_params
+
                 sentry_sdk.init(
                     dsn=worker_opt.sentry.dsn,
                     release=worker_opt.sentry.release,
                     environment=worker_opt.sentry.environment,
                     sample_rate=worker_opt.sentry.sample_rate,
+                    before_send=before_send,
                 )
 
         super().__init__(
