@@ -11,23 +11,28 @@ from macaroonbakery.bakery import Macaroon, b64decode, macaroon_to_dict
 from macaroonbakery.httpbakery.agent import Agent, AgentInteractor, AuthInfo
 
 from google.oauth2 import service_account
+import google.auth.transport.requests
 from typing import Union
 from dataclasses import asdict
+
 
 @dataclass
 class MacaroonAuthOptions:
     """
     Defines the parameters for authenticating with Candid.
     """
+
     macaroon_url: str
     username: str
     keys: KeyPair
-    
+
+
 @dataclass
 class GoogleAuthOptions:
     """
     Defines the parameters for authenticating with Google IAM.
     """
+
     type: str
     project_id: str
     private_key_id: str
@@ -39,18 +44,22 @@ class GoogleAuthOptions:
     auth_provider_x509_cert_url: str
     client_x509_cert_url: str
 
+
 @dataclass
 class KeyPair:
     """
     A structure for storing agent the key pair.
     """
+
     private: str
     public: str = None
+
 
 @dataclass
 class AuthOptions:
     provider: str
     config: Union[MacaroonAuthOptions, GoogleAuthOptions]
+
 
 class AuthHeaderProvider:
     """
@@ -60,7 +69,7 @@ class AuthHeaderProvider:
     def __init__(self, auth: AuthOptions):
         self.auth = auth
 
-    def get_headers(self) -> Mapping[str,str]:
+    def get_headers(self) -> Mapping[str, str]:
         if not self.auth.provider:
             raise TemporalError("auth provider must be specified")
 
@@ -68,13 +77,30 @@ class AuthHeaderProvider:
             return self.get_macaroon_headers()
         if self.auth.provider == "google":
             return self.get_google_iam_headers()
-        raise TemporalError("auth provider not supported. please specify candid or google.")
+        raise TemporalError(
+            "auth provider not supported. please specify candid or google."
+        )
 
     def get_google_iam_headers(self) -> Mapping[str, str]:
-        auth_dict = asdict(self.auth.config)
-        credentials = service_account.Credentials.from_service_account_info(auth_dict, scopes=['email', 'profile', 'openid', 'https://www.googleapis.com/auth/admin.directory.group.readonly'])
+        try:
+            auth_dict = asdict(self.auth.config)
+            credentials = service_account.Credentials.from_service_account_info(
+                auth_dict,
+                scopes=[
+                    "email",
+                    "profile",
+                    "openid",
+                ],
+            )
 
-        return {"authorization": f"Bearer {credentials.token}"}
+            auth_req = google.auth.transport.requests.Request()
+
+            if not credentials.valid:
+                credentials.refresh(auth_req)
+
+            return {"authorization": f"Bearer {credentials.token}"}
+        except Exception as err:
+            raise TemporalError(f"error creating oauth token: {err}")
 
     def get_macaroon_headers(self) -> Mapping[str, str]:
         """
