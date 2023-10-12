@@ -1,11 +1,11 @@
 [tool.poetry]
 name = "temporal-lib-py"
-version = "1.3.0"
+version = "1.3.1"
 description = "A wrapper library for candid-based temporal authentication"
 authors = ["gtato"]
 readme = "README.md"
 packages = [{include = "temporallib"}]
-license = "AGPL-3.0"
+license = "LGPL-3.0"
 
 [tool.poetry.dependencies]
 python = "^3.8"
