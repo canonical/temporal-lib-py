@@ -9,10 +9,12 @@ from temporalio.client import Interceptor, OutboundInterceptor
 from temporalio.common import QueryRejectCondition
 from temporalio.converter import DataConverter, default
 from temporalio.service import TLSConfig, RetryConfig
+from temporalio.runtime import Runtime
 
 from temporallib.auth import AuthHeaderProvider, AuthOptions, MacaroonAuthOptions, GoogleAuthOptions
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 from typing import Union
+import asyncio
 
 
 @dataclass
@@ -28,6 +30,11 @@ class Options:
     tls_root_cas: str = None
     auth: AuthOptions = None
 
+async def update_rpc_metadata(client_opt, rpc_metadata):
+    while True:
+        await asyncio.sleep(3300)  # Refresh every 55 minutes
+        auth_header_provider = AuthHeaderProvider(client_opt.auth)
+        rpc_metadata.update(auth_header_provider.get_headers())
 
 class Client:
     """
@@ -47,6 +54,8 @@ class Client:
         retry_config: Optional[RetryConfig] = None,
         rpc_metadata: Mapping[str, str] = None,
         identity: Optional[str] = None,
+        lazy: bool=False, 
+        runtime: Optional[Runtime]=None,
     ) -> TemporalClient:
         """
         A method which wraps the temporal :func:`temporalio.client.Client.connect` method by adding
@@ -59,6 +68,8 @@ class Client:
         :param retry_config: pass through parameter to `Client.connect()`
         :param rpc_metadata: pass through parameter to `Client.connect()` if authentication not enabled in client_opt
         :param identity: pass through parameter to `Client.connect()`
+        :param lazy: pass through parameter to `Client.connect()`
+        :param runtime: pass through parameter to `Client.connect()`
         :return: temporal client used to send or retrieve tasks
         """
         if interceptors is None:
@@ -73,6 +84,9 @@ class Client:
             auth_header_provider = AuthHeaderProvider(client_opt.auth)
             rpc_metadata = dict(rpc_metadata)
             rpc_metadata.update(auth_header_provider.get_headers())
+            
+            # Start a task to periodically update rpc_metadata
+            asyncio.create_task(update_rpc_metadata(client_opt, rpc_metadata))
 
         if client_opt.encryption:
             encryption_codec = EncryptionPayloadCodec(client_opt.encryption.key)
@@ -95,4 +109,5 @@ class Client:
             retry_config=retry_config,
             rpc_metadata=rpc_metadata,
             identity=identity,
+            runtime=runtime
         )
