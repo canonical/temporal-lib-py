@@ -30,9 +30,11 @@ class Options:
     tls_root_cas: str = None
     auth: AuthOptions = None
 
-async def update_rpc_metadata(client_opt, rpc_metadata):
+async def update_rpc_metadata(client_opt, rpc_metadata, refresh_interval):
     while True:
-        await asyncio.sleep(3300)  # Refresh every 55 minutes
+        # By default, refresh every 55 minutes. This is because Google OAuth
+        # tokens expire after 60 minutes.
+        await asyncio.sleep(refresh_interval)
         auth_header_provider = AuthHeaderProvider(client_opt.auth)
         rpc_metadata.update(auth_header_provider.get_headers())
 
@@ -54,8 +56,9 @@ class Client:
         retry_config: Optional[RetryConfig] = None,
         rpc_metadata: Mapping[str, str] = None,
         identity: Optional[str] = None,
-        lazy: bool=False, 
-        runtime: Optional[Runtime]=None,
+        lazy: bool = False, 
+        runtime: Optional[Runtime] = None,
+        rpc_refresh_interval: int = 3300,
     ) -> TemporalClient:
         """
         A method which wraps the temporal :func:`temporalio.client.Client.connect` method by adding
@@ -70,6 +73,7 @@ class Client:
         :param identity: pass through parameter to `Client.connect()`
         :param lazy: pass through parameter to `Client.connect()`
         :param runtime: pass through parameter to `Client.connect()`
+        :param rpc_refresh_interval: interval for refreshing rpc_metadata headers
         :return: temporal client used to send or retrieve tasks
         """
         if interceptors is None:
@@ -86,7 +90,7 @@ class Client:
             rpc_metadata.update(auth_header_provider.get_headers())
             
             # Start a task to periodically update rpc_metadata
-            asyncio.create_task(update_rpc_metadata(client_opt, rpc_metadata))
+            asyncio.create_task(update_rpc_metadata(client_opt, rpc_metadata, rpc_refresh_interval))
 
         if client_opt.encryption:
             encryption_codec = EncryptionPayloadCodec(client_opt.encryption.key)
