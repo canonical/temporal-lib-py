@@ -63,6 +63,7 @@ class Worker(TemporalWorker):
         debug_mode: bool = False,
         disable_eager_activity_execution: bool = False,
         on_fatal_error: Optional[Callable[[BaseException], Awaitable[None]]] = None,
+        use_worker_versioning: bool=False,
     ):
         if interceptors is None:
             interceptors = []
@@ -113,4 +114,5 @@ class Worker(TemporalWorker):
             debug_mode=debug_mode,
             disable_eager_activity_execution=disable_eager_activity_execution,
             on_fatal_error=on_fatal_error,
+            use_worker_versioning=use_worker_versioning,
         )
