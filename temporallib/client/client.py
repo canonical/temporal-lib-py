@@ -30,18 +30,28 @@ class Options:
     tls_root_cas: str = None
     auth: AuthOptions = None
 
-async def update_rpc_metadata(client_opt, rpc_metadata, refresh_interval):
-    while True:
-        # By default, refresh every 55 minutes. This is because Google OAuth
-        # tokens expire after 60 minutes.
-        await asyncio.sleep(refresh_interval)
-        auth_header_provider = AuthHeaderProvider(client_opt.auth)
-        rpc_metadata.update(auth_header_provider.get_headers())
-
 class Client:
     """
     A class which wraps the :class:`temporalio.client.Client` class
     """
+    
+    _is_stop_token_refresh = False
+
+    @classmethod
+    def __del__(self):
+        self._is_stop_token_refresh = True
+
+    @classmethod
+    async def update_rpc_metadata_loop(self, client_opt, rpc_metadata):
+        """
+        Periodically update the rpc_metadata headers
+        """
+        while not self._is_stop_token_refresh:
+            # By default, refresh every 55 minutes. This is because Google OAuth
+            # tokens expire after 60 minutes.
+            await asyncio.sleep(3300)
+            auth_header_provider = AuthHeaderProvider(client_opt.auth)
+            rpc_metadata.update(auth_header_provider.get_headers())
 
     @staticmethod
     async def connect(
@@ -58,7 +68,6 @@ class Client:
         identity: Optional[str] = None,
         lazy: bool = False, 
         runtime: Optional[Runtime] = None,
-        rpc_refresh_interval: int = 3300,
     ) -> TemporalClient:
         """
         A method which wraps the temporal :func:`temporalio.client.Client.connect` method by adding
@@ -73,7 +82,6 @@ class Client:
         :param identity: pass through parameter to `Client.connect()`
         :param lazy: pass through parameter to `Client.connect()`
         :param runtime: pass through parameter to `Client.connect()`
-        :param rpc_refresh_interval: interval for refreshing rpc_metadata headers
         :return: temporal client used to send or retrieve tasks
         """
         if interceptors is None:
@@ -90,7 +98,7 @@ class Client:
             rpc_metadata.update(auth_header_provider.get_headers())
             
             # Start a task to periodically update rpc_metadata
-            asyncio.create_task(update_rpc_metadata(client_opt, rpc_metadata, rpc_refresh_interval))
+            asyncio.create_task(Client.update_rpc_metadata_loop(client_opt, rpc_metadata))
 
         if client_opt.encryption:
             encryption_codec = EncryptionPayloadCodec(client_opt.encryption.key)
@@ -113,5 +121,6 @@ class Client:
             retry_config=retry_config,
             rpc_metadata=rpc_metadata,
             identity=identity,
-            runtime=runtime
+            lazy=lazy,
+            runtime=runtime,
         )
