@@ -17,6 +17,7 @@ from dataclasses import asdict
 import os
 
 
+@dataclass
 class MacaroonAuthOptions:
     """
     Defines the parameters for authenticating with Candid.
@@ -26,10 +27,10 @@ class MacaroonAuthOptions:
     username: str = None
     keys: KeyPair = None
 
-    def __init__(self, macaroon_url: str = None, username: str = None, keys: KeyPair = None):
-        self.macaroon_url = macaroon_url or os.getenv("TEMPORAL_CANDID_URL")
-        self.username = username or os.getenv("TEMPORAL_CANDID_USERNAME")
-        self.keys = keys or KeyPair()
+    def __post_init__(self):
+        self.macaroon_url = self.macaroon_url or os.getenv("TEMPORAL_CANDID_URL")
+        self.username = self.username or os.getenv("TEMPORAL_CANDID_USERNAME")
+        self.keys = self.keys or KeyPair()
 
 
 

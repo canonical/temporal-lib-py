@@ -101,8 +101,6 @@ class Client:
 
         namespace = client_opt.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default"
 
-        print(client_opt)
-
         if client_opt.auth:
             auth_header_provider = AuthHeaderProvider(client_opt.auth)
             rpc_metadata = dict(rpc_metadata)
