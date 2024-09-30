@@ -14,17 +14,23 @@ from google.oauth2 import service_account
 import google.auth.transport.requests
 from typing import Union
 from dataclasses import asdict
+import os
 
 
-@dataclass
 class MacaroonAuthOptions:
     """
     Defines the parameters for authenticating with Candid.
     """
 
-    macaroon_url: str
-    username: str
-    keys: KeyPair
+    macaroon_url: str = None
+    username: str = None
+    keys: KeyPair = None
+
+    def __init__(self, macaroon_url: str = None, username: str = None, keys: KeyPair = None):
+        self.macaroon_url = macaroon_url or os.getenv("TEMPORAL_CANDID_URL")
+        self.username = username or os.getenv("TEMPORAL_CANDID_USERNAME")
+        self.keys = keys or KeyPair()
+
 
 
 @dataclass
@@ -32,33 +38,52 @@ class GoogleAuthOptions:
     """
     Defines the parameters for authenticating with Google IAM.
     """
+    type: str = None
+    project_id: str = None
+    private_key_id: str = None
+    private_key: str = None
+    client_email: str = None
+    client_id: str = None
+    auth_uri: str = None
+    token_uri: str = None
+    auth_provider_x509_cert_url: str = None
+    client_x509_cert_url: str = None
 
-    type: str
-    project_id: str
-    private_key_id: str
-    private_key: str
-    client_email: str
-    client_id: str
-    auth_uri: str
-    token_uri: str
-    auth_provider_x509_cert_url: str
-    client_x509_cert_url: str
+    def __post_init__(self):
+        self.type = self.type or os.getenv("TEMPORAL_OIDC_AUTH_TYPE")
+        self.project_id = self.project_id or os.getenv("TEMPORAL_OIDC_PROJECT_ID")
+        self.private_key_id = self.private_key_id or os.getenv("TEMPORAL_OIDC_PRIVATE_KEY_ID")
+        self.private_key = self.private_key or os.getenv("TEMPORAL_OIDC_PRIVATE_KEY")
+        self.client_email = self.client_email or os.getenv("TEMPORAL_OIDC_CLIENT_EMAIL")
+        self.client_id = self.client_id or os.getenv("TEMPORAL_OIDC_CLIENT_ID")
+        self.auth_uri = self.auth_uri or os.getenv("TEMPORAL_OIDC_AUTH_URI")
+        self.token_uri = self.token_uri or os.getenv("TEMPORAL_OIDC_TOKEN_URI")
+        self.auth_provider_x509_cert_url = self.auth_provider_x509_cert_url or os.getenv("TEMPORAL_OIDC_AUTH_PROVIDER_CERT_URL")
+        self.client_x509_cert_url = self.client_x509_cert_url or os.getenv("TEMPORAL_OIDC_CLIENT_CERT_URL")
+
 
 
 @dataclass
 class KeyPair:
     """
-    A structure for storing agent the key pair.
+    A structure for storing agent key pair.
     """
-
-    private: str
+    private: str = None
     public: str = None
+
+    def __post_init__(self):
+        self.private = self.private or os.getenv("TEMPORAL_CANDID_PRIVATE_KEY")
+        self.public = self.public or os.getenv("TEMPORAL_CANDID_PUBLIC_KEY")
+
 
 
 @dataclass
 class AuthOptions:
-    provider: str
     config: Union[MacaroonAuthOptions, GoogleAuthOptions]
+    provider: str = None
+
+    def __post_init__(self):
+        self.provider = self.provider or os.getenv("TEMPORAL_AUTH_PROVIDER")
 
 
 class AuthHeaderProvider:

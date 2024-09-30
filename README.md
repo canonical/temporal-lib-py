@@ -157,6 +157,32 @@ await worker.run()
 Note that you can optionally enable parameter redaction to hide event parameters
 that are sent to Sentry.
 
+## Initializing with Environment Variables
+
+Another way of initializing the Temporal client is by setting environment
+variables. With this, the client can simply be initialized as follows:
+
+```bash
+export TEMPORAL_HOST="host"
+export TEMPORAL_NAMESPACE="namespace"
+export TEMPORAL_QUEUE="queue"
+export TEMPORAL_AUTH_PROVIDER="candid"
+export TEMPORAL_CANDID_URL="candid_url"
+export TEMPORAL_CANDID_USERNAME="username"
+export TEMPORAL_CANDID_PUBLIC_KEY="public_key"
+export TEMPORAL_CANDID_PRIVATE_KEY="private_key"
+```
+
+```python
+from temporallib.client import Client, Options
+from temporallib.auth import AuthOptions, MacaroonAuthOptions
+from temporallib.encryption import EncryptionOptions
+async def main():
+    cfg = Options(auth=AuthOptions(config=MacaroonAuthOptions()))
+    client = await Client.connect(cfg)
+	...
+```
+
 ## Samples
 
 More examples of workflows using this library can be found here:

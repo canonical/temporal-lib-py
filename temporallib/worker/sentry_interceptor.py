@@ -2,6 +2,7 @@
 
 from dataclasses import asdict, is_dataclass, dataclass
 from typing import Any, Optional, Type, Union
+import os
 
 from temporalio import activity, workflow
 from temporalio.worker import (
@@ -19,12 +20,21 @@ with workflow.unsafe.imports_passed_through():
 
 @dataclass
 class SentryOptions:
-    dsn: str
+    """
+    Defines the parameters for configuring Sentry error reporting.
+    """
+    dsn: str = None
     release: str = None
     environment: str = None
-    sample_rate: float = 1.0
-    redact_params: bool = False
+    sample_rate: float = None
+    redact_params: bool = None
 
+    def __post_init__(self):
+        self.dsn = self.dsn or os.getenv("SENTRY_DSN")
+        self.release = self.release or os.getenv("SENTRY_RELEASE")
+        self.environment = self.environment or os.getenv("SENTRY_ENVIRONMENT")
+        self.sample_rate = self.sample_rate or float(os.getenv("SENTRY_SAMPLE_RATE", self.sample_rate))
+        self.redact_params = self.redact_params or os.getenv("SENTRY_REDACT_PARAMS", "").lower() == "true"
 
 def _set_common_workflow_tags(info: Union[workflow.Info, activity.Info]):
     set_tag("temporal.workflow.type", info.workflow_type)

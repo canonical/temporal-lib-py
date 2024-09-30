@@ -7,16 +7,19 @@ from temporalio.api.common.v1 import Payload
 from temporalio.converter import PayloadCodec
 
 from temporallib.encryption.crypt import decrypt, encrypt
-
+import os
 
 @dataclass
 class EncryptionOptions:
     """
-    Defines the parameters for encrypting workflow arguments
+    Defines the parameters for encrypting workflow arguments.
     """
-
-    key: str
+    key: str = None
     compress: bool = False
+
+    def __post_init__(self):
+        self.key = self.key or os.getenv("TEMPORAL_ENCRYPTION_KEY")
+        self.compress = self.compress or os.getenv("TEMPORAL_ENCRYPTION_COMPRESS")
 
 
 class EncryptionPayloadCodec(PayloadCodec):
