@@ -10,7 +10,6 @@ from temporallib.client import Client, Options
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 from tests.auth.test_auth import mock_discharge_all, mock_get_macaroon, mock_get_token
 from google.oauth2 import service_account
-import os
 
 async def mock_connect(_):
     return MagicMock()
@@ -50,7 +49,7 @@ async def test_connect_candid_env_variables(monkeypatch):
     monkeypatch.setenv("TEMPORAL_NAMESPACE", "test namespace")
     
     monkeypatch.setenv("TEMPORAL_AUTH_PROVIDER", "candid")
-    monkeypatch.setenv("TEMPORAL_CANDID_URL", "test_url")
+    monkeypatch.setenv("TEMPORAL_CANDID_MACAROON_URL", "test_url")
     monkeypatch.setenv("TEMPORAL_CANDID_USERNAME", "test")
     monkeypatch.setenv("TEMPORAL_CANDID_PRIVATE_KEY", "MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg=")
     monkeypatch.setenv("TEMPORAL_CANDID_PUBLIC_KEY", "public")
@@ -62,11 +61,10 @@ async def test_connect_candid_env_variables(monkeypatch):
     monkeypatch.setattr(bakery, "discharge_all", mock_discharge_all)
     monkeypatch.setattr(ServiceClient, "connect", mock_connect)
 
-    opts = Options(auth=AuthOptions(config=MacaroonAuthOptions()))
+    opts = Options(auth=AuthOptions(config=MacaroonAuthOptions(keys=KeyPair())))
 
     client = await Client.connect(opts)
     assert client.namespace == opts.namespace
-    assert isinstance(client.data_converter.payload_codec, EncryptionPayloadCodec)
     assert isinstance(opts.auth, AuthOptions)
     assert isinstance(opts.auth.config, MacaroonAuthOptions)
 
@@ -129,6 +127,5 @@ async def test_connect_google_env_variables(monkeypatch):
 
     client = await Client.connect(opts)
     assert client.namespace == opts.namespace
-    assert isinstance(client.data_converter.payload_codec, EncryptionPayloadCodec)
     assert isinstance(opts.auth, AuthOptions)
     assert isinstance(opts.auth.config, GoogleAuthOptions)

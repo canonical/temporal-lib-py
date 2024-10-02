@@ -13,78 +13,50 @@ from macaroonbakery.httpbakery.agent import Agent, AgentInteractor, AuthInfo
 from google.oauth2 import service_account
 import google.auth.transport.requests
 from typing import Union
-from dataclasses import asdict
-import os
+from pydantic_settings import BaseSettings
+from pydantic import Field, BaseModel
 
 
-@dataclass
-class MacaroonAuthOptions:
-    """
-    Defines the parameters for authenticating with Candid.
-    """
+class MacaroonAuthOptions(BaseSettings):
+    macaroon_url: str
+    username: str
+    keys: Optional[KeyPair]
 
-    macaroon_url: str = None
-    username: str = None
-    keys: KeyPair = None
-
-    def __post_init__(self):
-        self.macaroon_url = self.macaroon_url or os.getenv("TEMPORAL_CANDID_URL")
-        self.username = self.username or os.getenv("TEMPORAL_CANDID_USERNAME")
-        self.keys = self.keys or KeyPair()
+    class Config:
+        env_prefix = 'TEMPORAL_CANDID_'
 
 
+class GoogleAuthOptions(BaseSettings):
+    type: str = "service_account"
+    project_id: str
+    private_key_id: str
+    private_key: str
+    client_email: str
+    client_id: str
+    auth_uri: str = "https://accounts.google.com/o/oauth2/auth"
+    token_uri: str = "https://oauth2.googleapis.com/token"
+    auth_provider_x509_cert_url: str = "https://www.googleapis.com/oauth2/v1/certs"
+    client_x509_cert_url: str = Field(None, alias="TEMPORAL_OIDC_CLIENT_CERT_URL")
 
-@dataclass
-class GoogleAuthOptions:
-    """
-    Defines the parameters for authenticating with Google IAM.
-    """
-    type: str = None
-    project_id: str = None
-    private_key_id: str = None
-    private_key: str = None
-    client_email: str = None
-    client_id: str = None
-    auth_uri: str = None
-    token_uri: str = None
-    auth_provider_x509_cert_url: str = None
-    client_x509_cert_url: str = None
+    class Config:
+        env_prefix = 'TEMPORAL_OIDC_'
+        populate_by_name = True
 
-    def __post_init__(self):
-        self.type = self.type or os.getenv("TEMPORAL_OIDC_AUTH_TYPE")
-        self.project_id = self.project_id or os.getenv("TEMPORAL_OIDC_PROJECT_ID")
-        self.private_key_id = self.private_key_id or os.getenv("TEMPORAL_OIDC_PRIVATE_KEY_ID")
-        self.private_key = self.private_key or os.getenv("TEMPORAL_OIDC_PRIVATE_KEY")
-        self.client_email = self.client_email or os.getenv("TEMPORAL_OIDC_CLIENT_EMAIL")
-        self.client_id = self.client_id or os.getenv("TEMPORAL_OIDC_CLIENT_ID")
-        self.auth_uri = self.auth_uri or os.getenv("TEMPORAL_OIDC_AUTH_URI")
-        self.token_uri = self.token_uri or os.getenv("TEMPORAL_OIDC_TOKEN_URI")
-        self.auth_provider_x509_cert_url = self.auth_provider_x509_cert_url or os.getenv("TEMPORAL_OIDC_AUTH_PROVIDER_CERT_URL")
-        self.client_x509_cert_url = self.client_x509_cert_url or os.getenv("TEMPORAL_OIDC_CLIENT_CERT_URL")
+class KeyPair(BaseSettings):
+    private: str = Field(None, alias="TEMPORAL_CANDID_PRIVATE_KEY")
+    public: str = Field(None, alias="TEMPORAL_CANDID_PUBLIC_KEY")
+
+    class Config:
+        populate_by_name = True
 
 
 
-@dataclass
-class KeyPair:
-    """
-    A structure for storing agent key pair.
-    """
-    private: str = None
-    public: str = None
+class AuthOptions(BaseSettings):
+    config: Optional[Union[MacaroonAuthOptions, GoogleAuthOptions]] = None
+    provider: str
 
-    def __post_init__(self):
-        self.private = self.private or os.getenv("TEMPORAL_CANDID_PRIVATE_KEY")
-        self.public = self.public or os.getenv("TEMPORAL_CANDID_PUBLIC_KEY")
-
-
-
-@dataclass
-class AuthOptions:
-    config: Union[MacaroonAuthOptions, GoogleAuthOptions]
-    provider: str = None
-
-    def __post_init__(self):
-        self.provider = self.provider or os.getenv("TEMPORAL_AUTH_PROVIDER")
+    class Config:
+        env_prefix = 'TEMPORAL_AUTH_'
 
 
 class AuthHeaderProvider:
@@ -109,7 +81,7 @@ class AuthHeaderProvider:
 
     def get_google_iam_headers(self) -> Mapping[str, str]:
         try:
-            auth_dict = asdict(self.auth.config)
+            auth_dict = self.auth.config.model_dump()
             credentials = service_account.Credentials.from_service_account_info(
                 auth_dict,
                 scopes=[

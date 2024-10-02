@@ -1,9 +1,9 @@
 """Temporal client worker Sentry interceptor."""
 
-from dataclasses import asdict, is_dataclass, dataclass
+from dataclasses import asdict, is_dataclass
 from typing import Any, Optional, Type, Union
-import os
-
+from pydantic_settings import BaseSettings
+from pydantic import validator
 from temporalio import activity, workflow
 from temporalio.worker import (
     ActivityInboundInterceptor,
@@ -18,23 +18,26 @@ with workflow.unsafe.imports_passed_through():
     from sentry_sdk import Hub, capture_exception, set_context, set_tag
 
 
-@dataclass
-class SentryOptions:
+class SentryOptions(BaseSettings):
     """
     Defines the parameters for configuring Sentry error reporting.
     """
-    dsn: str = None
-    release: str = None
-    environment: str = None
-    sample_rate: float = None
-    redact_params: bool = None
+    dsn: str
+    release: str
+    environment: str
+    sample_rate: float
+    redact_params: bool
 
-    def __post_init__(self):
-        self.dsn = self.dsn or os.getenv("SENTRY_DSN")
-        self.release = self.release or os.getenv("SENTRY_RELEASE")
-        self.environment = self.environment or os.getenv("SENTRY_ENVIRONMENT")
-        self.sample_rate = self.sample_rate or float(os.getenv("SENTRY_SAMPLE_RATE", self.sample_rate))
-        self.redact_params = self.redact_params or os.getenv("SENTRY_REDACT_PARAMS", "").lower() == "true"
+    class Config:
+        env_prefix = "TEMPORAL_SENTRY_"
+
+    @validator('sample_rate', pre=True, always=True)
+    def validate_sample_rate(cls, v):
+        return float(v) if v is not None else None
+
+    @validator('redact_params', pre=True, always=True)
+    def validate_redact_params(cls, v):
+        return v if v is not None else (os.getenv("TEMPORAL_SENTRY_REDACT_PARAMS", "").lower() == "true")
 
 def _set_common_workflow_tags(info: Union[workflow.Info, activity.Info]):
     set_tag("temporal.workflow.type", info.workflow_type)

@@ -175,10 +175,10 @@ export TEMPORAL_CANDID_PRIVATE_KEY="private_key"
 
 ```python
 from temporallib.client import Client, Options
-from temporallib.auth import AuthOptions, MacaroonAuthOptions
+from temporallib.auth import AuthOptions, GoogleAuthOptions
 from temporallib.encryption import EncryptionOptions
 async def main():
-    cfg = Options(auth=AuthOptions(config=MacaroonAuthOptions()))
+    cfg = Options(auth=AuthOptions(config=GoogleAuthOptions()))
     client = await Client.connect(cfg)
 	...
 ```

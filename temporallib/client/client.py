@@ -11,32 +11,26 @@ from temporalio.converter import DataConverter, default
 from temporalio.service import TLSConfig, RetryConfig, KeepAliveConfig
 from temporalio.runtime import Runtime
 
-from temporallib.auth import AuthHeaderProvider, AuthOptions, MacaroonAuthOptions, GoogleAuthOptions
+from temporallib.auth import AuthHeaderProvider, AuthOptions, MacaroonAuthOptions, GoogleAuthOptions, KeyPair
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 from typing import Union
 import asyncio
+from pydantic_settings import BaseSettings
 import os
 
 
-@dataclass
-class Options:
-    """
-    Defines the options to pass to the connect method in order to add authentication and parameter encryption.
-    """
-    host: str = None
-    queue: str = None
-    namespace: str = None
-    encryption: EncryptionOptions = None
-    tls_root_cas: str = None
-    auth: AuthOptions = None
+class Options(BaseSettings):
+    host: str
+    queue: str
+    namespace: str
+    encryption: Optional[EncryptionOptions] = None
+    tls_root_cas: Optional[str]
+    auth: Optional[AuthOptions] = None
 
-    def __post_init__(self):
-        self.host = self.host or os.getenv("TEMPORAL_HOST")
-        self.queue = self.queue or os.getenv("TEMPORAL_QUEUE")
-        self.namespace = self.namespace or os.getenv("TEMPORAL_NAMESPACE")
-        self.tls_root_cas = self.tls_root_cas or os.getenv("TEMPORAL_TLS_ROOT_CAS")
-        self.encryption = self.encryption or EncryptionOptions()
-        self.auth = self.auth or None
+    class Config:
+        env_prefix = 'TEMPORAL_'
+
+Options.model_rebuild()
 
 class Client:
     """

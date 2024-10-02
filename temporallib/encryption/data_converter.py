@@ -7,19 +7,14 @@ from temporalio.api.common.v1 import Payload
 from temporalio.converter import PayloadCodec
 
 from temporallib.encryption.crypt import decrypt, encrypt
-import os
+from pydantic_settings import BaseSettings
 
-@dataclass
-class EncryptionOptions:
-    """
-    Defines the parameters for encrypting workflow arguments.
-    """
-    key: str = None
+class EncryptionOptions(BaseSettings):
+    key: str
     compress: bool = False
 
-    def __post_init__(self):
-        self.key = self.key or os.getenv("TEMPORAL_ENCRYPTION_KEY")
-        self.compress = self.compress or os.getenv("TEMPORAL_ENCRYPTION_COMPRESS")
+    class Config:
+        env_prefix = 'TEMPORAL_ENCRYPTION_'
 
 
 class EncryptionPayloadCodec(PayloadCodec):
