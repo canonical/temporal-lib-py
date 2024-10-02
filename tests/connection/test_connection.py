@@ -49,7 +49,7 @@ async def test_connect_candid_env_variables(monkeypatch):
     monkeypatch.setenv("TEMPORAL_NAMESPACE", "test namespace")
     
     monkeypatch.setenv("TEMPORAL_AUTH_PROVIDER", "candid")
-    monkeypatch.setenv("TEMPORAL_CANDID_MACAROON_URL", "test_url")
+    monkeypatch.setenv("TEMPORAL_CANDID_URL", "test_url")
     monkeypatch.setenv("TEMPORAL_CANDID_USERNAME", "test")
     monkeypatch.setenv("TEMPORAL_CANDID_PRIVATE_KEY", "MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg=")
     monkeypatch.setenv("TEMPORAL_CANDID_PUBLIC_KEY", "public")
@@ -61,12 +61,13 @@ async def test_connect_candid_env_variables(monkeypatch):
     monkeypatch.setattr(bakery, "discharge_all", mock_discharge_all)
     monkeypatch.setattr(ServiceClient, "connect", mock_connect)
 
-    opts = Options(auth=AuthOptions(config=MacaroonAuthOptions(keys=KeyPair())))
+    opts = Options(auth=AuthOptions(config=MacaroonAuthOptions(keys=KeyPair())),encryption=EncryptionOptions())
 
     client = await Client.connect(opts)
     assert client.namespace == opts.namespace
     assert isinstance(opts.auth, AuthOptions)
     assert isinstance(opts.auth.config, MacaroonAuthOptions)
+    assert isinstance(client.data_converter.payload_codec, EncryptionPayloadCodec)
 
 @pytest.mark.asyncio
 async def test_connect_google(monkeypatch):
@@ -123,9 +124,10 @@ async def test_connect_google_env_variables(monkeypatch):
     monkeypatch.setattr(service_account.Credentials, "from_service_account_info", mock_get_token)
     monkeypatch.setattr(ServiceClient, "connect", mock_connect)
     
-    opts = Options(auth=AuthOptions(config=GoogleAuthOptions()))
+    opts = Options(auth=AuthOptions(config=GoogleAuthOptions()), encryption=EncryptionOptions())
 
     client = await Client.connect(opts)
     assert client.namespace == opts.namespace
     assert isinstance(opts.auth, AuthOptions)
     assert isinstance(opts.auth.config, GoogleAuthOptions)
+    assert isinstance(client.data_converter.payload_codec, EncryptionPayloadCodec)

@@ -18,13 +18,13 @@ from pydantic import Field, BaseModel
 
 
 class MacaroonAuthOptions(BaseSettings):
-    macaroon_url: str
+    macaroon_url: str = Field(None, alias="TEMPORAL_CANDID_URL")
     username: str
     keys: Optional[KeyPair]
 
     class Config:
         env_prefix = 'TEMPORAL_CANDID_'
-
+        populate_by_name = True
 
 class GoogleAuthOptions(BaseSettings):
     type: str = "service_account"
@@ -36,7 +36,7 @@ class GoogleAuthOptions(BaseSettings):
     auth_uri: str = "https://accounts.google.com/o/oauth2/auth"
     token_uri: str = "https://oauth2.googleapis.com/token"
     auth_provider_x509_cert_url: str = "https://www.googleapis.com/oauth2/v1/certs"
-    client_x509_cert_url: str = Field(None, alias="TEMPORAL_OIDC_CLIENT_CERT_URL")
+    client_x509_cert_url: Optional[str] = Field(None, alias="TEMPORAL_OIDC_CLIENT_CERT_URL")
 
     class Config:
         env_prefix = 'TEMPORAL_OIDC_'

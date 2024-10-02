@@ -159,6 +159,8 @@ that are sent to Sentry.
 
 ## Initializing with Environment Variables
 
+### Candid
+
 Another way of initializing the Temporal client is by setting environment
 variables. With this, the client can simply be initialized as follows:
 
@@ -171,6 +173,38 @@ export TEMPORAL_CANDID_URL="candid_url"
 export TEMPORAL_CANDID_USERNAME="username"
 export TEMPORAL_CANDID_PUBLIC_KEY="public_key"
 export TEMPORAL_CANDID_PRIVATE_KEY="private_key"
+```
+
+```python
+from temporallib.client import Client, Options
+from temporallib.auth import AuthOptions, MacaroonAuthOptions, KeyPair
+from temporallib.encryption import EncryptionOptions
+async def main():
+    cfg = Options(auth=AuthOptions(config=MacaroonAuthOptions(keys=KeyPair())))
+    client = await Client.connect(cfg)
+	...
+```
+
+### Google IAM
+
+The following environment variables can be set when using the Google IAM-based
+authentication option:
+
+```bash
+export TEMPORAL_HOST="host"
+export TEMPORAL_NAMESPACE="namespace"
+export TEMPORAL_QUEUE="queue"
+export TEMPORAL_AUTH_PROVIDER="google"
+export TEMPORAL_OIDC_AUTH_TYPE="service_account"
+export TEMPORAL_OIDC_PROJECT_ID="project_id"
+export TEMPORAL_OIDC_PRIVATE_KEY_ID="private_key_id"
+export TEMPORAL_OIDC_PRIVATE_KEY="private_key"
+export TEMPORAL_OIDC_CLIENT_EMAIL="client_email"
+export TEMPORAL_OIDC_CLIENT_ID="client_id"
+export TEMPORAL_OIDC_AUTH_URI="https://accounts.google.com/o/oauth2/auth"
+export TEMPORAL_OIDC_TOKEN_URI="https://oauth2.googleapis.com/token"
+export TEMPORAL_OIDC_AUTH_PROVIDER_CERT_URL="https://www.googleapis.com/oauth2/v1/certs"
+export TEMPORAL_OIDC_CLIENT_CERT_URL="test"
 ```
 
 ```python
