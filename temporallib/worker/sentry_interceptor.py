@@ -22,11 +22,11 @@ class SentryOptions(BaseSettings):
     """
     Defines the parameters for configuring Sentry error reporting.
     """
-    dsn: str
-    release: str
-    environment: str
-    sample_rate: float
-    redact_params: bool
+    dsn: Optional[str]
+    release: Optional[str]
+    environment: Optional[str]
+    sample_rate: Optional[float] = 1.0
+    redact_params: Optional[bool] = False
 
     class Config:
         env_prefix = "TEMPORAL_SENTRY_"
