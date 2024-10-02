@@ -13,52 +13,50 @@ from macaroonbakery.httpbakery.agent import Agent, AgentInteractor, AuthInfo
 from google.oauth2 import service_account
 import google.auth.transport.requests
 from typing import Union
-from dataclasses import asdict
+from pydantic_settings import BaseSettings
+from pydantic import Field, BaseModel
 
 
-@dataclass
-class MacaroonAuthOptions:
-    """
-    Defines the parameters for authenticating with Candid.
-    """
-
-    macaroon_url: str
+class MacaroonAuthOptions(BaseSettings):
+    macaroon_url: str = Field(None, alias="TEMPORAL_CANDID_URL")
     username: str
-    keys: KeyPair
+    keys: Optional[KeyPair]
 
+    class Config:
+        env_prefix = 'TEMPORAL_CANDID_'
+        populate_by_name = True
 
-@dataclass
-class GoogleAuthOptions:
-    """
-    Defines the parameters for authenticating with Google IAM.
-    """
-
-    type: str
+class GoogleAuthOptions(BaseSettings):
+    type: str = "service_account"
     project_id: str
     private_key_id: str
     private_key: str
     client_email: str
     client_id: str
-    auth_uri: str
-    token_uri: str
-    auth_provider_x509_cert_url: str
-    client_x509_cert_url: str
+    auth_uri: str = "https://accounts.google.com/o/oauth2/auth"
+    token_uri: str = "https://oauth2.googleapis.com/token"
+    auth_provider_x509_cert_url: str = "https://www.googleapis.com/oauth2/v1/certs"
+    client_x509_cert_url: Optional[str] = Field(None, alias="TEMPORAL_OIDC_CLIENT_CERT_URL")
+
+    class Config:
+        env_prefix = 'TEMPORAL_OIDC_'
+        populate_by_name = True
+
+class KeyPair(BaseSettings):
+    private: str = Field(None, alias="TEMPORAL_CANDID_PRIVATE_KEY")
+    public: str = Field(None, alias="TEMPORAL_CANDID_PUBLIC_KEY")
+
+    class Config:
+        populate_by_name = True
 
 
-@dataclass
-class KeyPair:
-    """
-    A structure for storing agent the key pair.
-    """
 
-    private: str
-    public: str = None
-
-
-@dataclass
-class AuthOptions:
+class AuthOptions(BaseSettings):
+    config: Optional[Union[MacaroonAuthOptions, GoogleAuthOptions]] = None
     provider: str
-    config: Union[MacaroonAuthOptions, GoogleAuthOptions]
+
+    class Config:
+        env_prefix = 'TEMPORAL_AUTH_'
 
 
 class AuthHeaderProvider:
@@ -83,7 +81,7 @@ class AuthHeaderProvider:
 
     def get_google_iam_headers(self) -> Mapping[str, str]:
         try:
-            auth_dict = asdict(self.auth.config)
+            auth_dict = self.auth.config.model_dump()
             credentials = service_account.Credentials.from_service_account_info(
                 auth_dict,
                 scopes=[

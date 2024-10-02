@@ -19,6 +19,7 @@ from temporallib.worker.sentry_interceptor import (
     redact_params,
 )
 import sentry_sdk
+import os
 
 
 @dataclass
@@ -34,7 +35,7 @@ class Worker(TemporalWorker):
     def __init__(
         self,
         client: Client,
-        task_queue: str,
+        task_queue: Optional[str] = None,
         workflows: Sequence[Type] = [],
         activities: Sequence[Callable] = [],
         worker_opt: Optional[WorkerOptions] = None,
@@ -68,6 +69,10 @@ class Worker(TemporalWorker):
         if interceptors is None:
             interceptors = []
 
+        self._task_queue = task_queue or os.getenv("TEMPORAL_QUEUE")
+        if not self._task_queue:
+            raise ValueError("task_queue must be provided either as a parameter or an environment variable.")
+
         if worker_opt:
             if worker_opt.sentry:
                 interceptors.append(SentryInterceptor())
@@ -86,7 +91,7 @@ class Worker(TemporalWorker):
 
         super().__init__(
             client=client,
-            task_queue=task_queue,
+            task_queue=self._task_queue,
             workflows=workflows,
             activities=activities,
             activity_executor=activity_executor,

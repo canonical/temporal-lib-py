@@ -8,27 +8,29 @@ from temporalio.client import Client as TemporalClient
 from temporalio.client import Interceptor, OutboundInterceptor
 from temporalio.common import QueryRejectCondition
 from temporalio.converter import DataConverter, default
-from temporalio.service import TLSConfig, RetryConfig
+from temporalio.service import TLSConfig, RetryConfig, KeepAliveConfig
 from temporalio.runtime import Runtime
 
-from temporallib.auth import AuthHeaderProvider, AuthOptions, MacaroonAuthOptions, GoogleAuthOptions
+from temporallib.auth import AuthHeaderProvider, AuthOptions, MacaroonAuthOptions, GoogleAuthOptions, KeyPair
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 from typing import Union
 import asyncio
+from pydantic_settings import BaseSettings
+import os
 
 
-@dataclass
-class Options:
-    """
-    Defines the options to pass to the connect method in order to add authentication and parameter encryption
-    """
-
+class Options(BaseSettings):
     host: str
     queue: str
     namespace: str
-    encryption: EncryptionOptions = None
-    tls_root_cas: str = None
-    auth: AuthOptions = None
+    encryption: Optional[EncryptionOptions] = None
+    tls_root_cas: Optional[str]
+    auth: Optional[AuthOptions] = None
+
+    class Config:
+        env_prefix = 'TEMPORAL_'
+
+Options.model_rebuild()
 
 class Client:
     """
@@ -68,6 +70,7 @@ class Client:
         identity: Optional[str] = None,
         lazy: bool = False, 
         runtime: Optional[Runtime] = None,
+        keep_alive_config: Optional[KeepAliveConfig] = None,
     ) -> TemporalClient:
         """
         A method which wraps the temporal :func:`temporalio.client.Client.connect` method by adding
@@ -90,7 +93,7 @@ class Client:
         if rpc_metadata is None:
             rpc_metadata = {}
 
-        namespace = client_opt.namespace or "default"
+        namespace = client_opt.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default"
 
         if client_opt.auth:
             auth_header_provider = AuthHeaderProvider(client_opt.auth)
@@ -123,4 +126,5 @@ class Client:
             identity=identity,
             lazy=lazy,
             runtime=runtime,
+            keep_alive_config=keep_alive_config,
         )
