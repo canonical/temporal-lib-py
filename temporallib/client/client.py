@@ -9,7 +9,11 @@ from temporalio.client import Interceptor, OutboundInterceptor
 from temporalio.common import QueryRejectCondition
 from temporalio.converter import DataConverter, default
 from temporalio.service import TLSConfig, RetryConfig, KeepAliveConfig
-from temporalio.runtime import Runtime
+from temporalio.runtime import (
+    PrometheusConfig,
+    Runtime,
+    TelemetryConfig,
+)
 
 from temporallib.auth import AuthHeaderProvider, AuthOptions, MacaroonAuthOptions, GoogleAuthOptions, KeyPair
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
@@ -20,17 +24,29 @@ import os
 
 
 class Options(BaseSettings):
-    host: str
-    queue: str
-    namespace: str
+    host: Optional[str] = None
+    queue: Optional[str] = None
+    namespace: Optional[str] = None
     encryption: Optional[EncryptionOptions] = None
-    tls_root_cas: Optional[str]
+    tls_root_cas: Optional[str] = None
     auth: Optional[AuthOptions] = None
+    prometheus_port: Optional[str] = None
 
     class Config:
         env_prefix = 'TEMPORAL_'
 
 Options.model_rebuild()
+
+def _init_runtime_with_prometheus(port: int) -> Runtime:
+    """Create runtime for use with Prometheus metrics.
+
+    Args:
+        port: Port of prometheus.
+
+    Returns:
+        Runtime for temporalio with prometheus.
+    """
+    return Runtime(telemetry=TelemetryConfig(metrics=PrometheusConfig(bind_address=f"0.0.0.0:{port}")))
 
 class Client:
     """
@@ -103,7 +119,7 @@ class Client:
             # Start a task to periodically update rpc_metadata
             asyncio.create_task(Client.update_rpc_metadata_loop(client_opt, rpc_metadata))
 
-        if client_opt.encryption:
+        if client_opt.encryption and client_opt.encryption.key:
             encryption_codec = EncryptionPayloadCodec(client_opt.encryption.key)
             data_converter = dataclasses.replace(
                 data_converter, payload_codec=encryption_codec
@@ -113,6 +129,9 @@ class Client:
             enc_tls_root_cas = client_opt.tls_root_cas.encode()
             host = client_opt.host.split(":")[0]
             tls = TLSConfig(server_root_ca_cert=enc_tls_root_cas, domain=host)
+
+        if runtime is None and client_opt.prometheus_port:
+            runtime = _init_runtime_with_prometheus(int(client_opt.prometheus_port))
 
         return await TemporalClient.connect(
             client_opt.host,

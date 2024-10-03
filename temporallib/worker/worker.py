@@ -74,7 +74,7 @@ class Worker(TemporalWorker):
             raise ValueError("task_queue must be provided either as a parameter or an environment variable.")
 
         if worker_opt:
-            if worker_opt.sentry:
+            if worker_opt.sentry and worker_opt.sentry.dsn:
                 interceptors.append(SentryInterceptor())
 
                 before_send = None
