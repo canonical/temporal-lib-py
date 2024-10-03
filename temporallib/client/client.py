@@ -119,7 +119,7 @@ class Client:
             # Start a task to periodically update rpc_metadata
             asyncio.create_task(Client.update_rpc_metadata_loop(client_opt, rpc_metadata))
 
-        if client_opt.encryption:
+        if client_opt.encryption and client_opt.encryption.key:
             encryption_codec = EncryptionPayloadCodec(client_opt.encryption.key)
             data_converter = dataclasses.replace(
                 data_converter, payload_codec=encryption_codec
