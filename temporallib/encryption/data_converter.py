@@ -10,8 +10,8 @@ from temporallib.encryption.crypt import decrypt, encrypt
 from pydantic_settings import BaseSettings
 
 class EncryptionOptions(BaseSettings):
-    key: str
-    compress: bool = False
+    key: Optional[str] = None
+    compress: Optional[bool] = False
 
     class Config:
         env_prefix = 'TEMPORAL_ENCRYPTION_'
