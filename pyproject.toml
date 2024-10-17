@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temporal-lib-py"
-version = "1.4.4"
+version = "1.4.5"
 description = "A wrapper library for candid-based temporal authentication"
 authors = ["gtato"]
 readme = "README.md"
