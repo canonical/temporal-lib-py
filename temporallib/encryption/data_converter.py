@@ -8,6 +8,7 @@ from temporalio.converter import PayloadCodec
 
 from temporallib.encryption.crypt import decrypt, encrypt
 from pydantic_settings import BaseSettings
+from typing import Optional
 
 class EncryptionOptions(BaseSettings):
     key: Optional[str] = None
