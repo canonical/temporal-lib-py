@@ -21,6 +21,7 @@ from typing import Union
 import asyncio
 from pydantic_settings import BaseSettings
 import os
+import logging
 
 
 class Options(BaseSettings):
@@ -67,10 +68,10 @@ class Client:
         while not cls._is_stop_token_refresh:
             try:
                 await asyncio.sleep(3300)  # Refresh tokens every ~55 minutes (OAuth tokens last 60 min)
-                print("Refreshing token and reconnecting...")
+                logging.info("Refreshing token and reconnecting to Temporal server...")
                 await cls._reconnect()
             except Exception as e:
-                print(f"Failed to reconnect: {e}")
+                logging.error(f"Failed to reconnect to Temporal server: {e}")
                 await asyncio.sleep(60)  # Backoff before retrying
 
     @classmethod
