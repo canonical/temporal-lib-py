@@ -23,6 +23,8 @@ from pydantic_settings import BaseSettings
 import os
 import logging
 
+logging.basicConfig(level=logging.INFO)
+
 
 class Options(BaseSettings):
     host: Optional[str] = None
@@ -55,28 +57,34 @@ class Client:
     """
 
     _is_stop_token_refresh = False
+    _initial_backoff = 60
+    _max_backoff = 600
+    _token_refresh_interval = 3300
 
     @classmethod
-    def __del__(cls):
-        cls._is_stop_token_refresh = True
+    def __del__(self):
+        self._is_stop_token_refresh = True
 
     @classmethod
-    async def reconnect_loop(cls):
+    async def reconnect_loop(self):
         """
         Reconnects to the Temporal server periodically when the token expires.
         """
-        while not cls._is_stop_token_refresh:
+        while not self._is_stop_token_refresh:
             try:
-                await asyncio.sleep(3300)  # Refresh tokens every ~55 minutes (OAuth tokens last 60 min)
+                await self._reconnect()
+                backoff = self._initial_backoff
+                await asyncio.sleep(self._token_refresh_interval)  # Refresh tokens every ~55 minutes (OAuth tokens last 60 minutes)
                 logging.info("Refreshing token and reconnecting to Temporal server...")
-                await cls._reconnect()
             except Exception as e:
                 logging.error(f"Failed to reconnect to Temporal server: {e}")
-                await asyncio.sleep(60)  # Backoff before retrying
+                logging.info(f"Retrying connection to Temporal server in {backoff} seconds...")
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, self._max_backoff)
 
     @classmethod
     async def connect(
-        cls,
+        self,
         client_opt: Options,
         *,
         data_converter: DataConverter = default(),
@@ -93,78 +101,77 @@ class Client:
         keep_alive_config: Optional[KeepAliveConfig] = None,
     ) -> TemporalClient:
         """
-        Connects to the Temporal server and automatically reconnects upon token expiry.
+        A method which wraps the temporal :func:`temporalio.client.Client.connect` method by adding
+        authorization headers and encrypting payloads.
+        :param client_opt: the additional options for authorization and encryption
+        :param data_converter: pass through to `Client.connect` if encryption not enabled in client_opt
+        :param interceptors: pass through parameter to `Client.connect()`
+        :param default_workflow_query_reject_condition: pass through parameter to `Client.connect()`
+        :param tls: pass through parameter to `Client.connect()` if tls certificate not specified in client_opt
+        :param retry_config: pass through parameter to `Client.connect()`
+        :param rpc_metadata: pass through parameter to `Client.connect()` if authentication not enabled in client_opt
+        :param identity: pass through parameter to `Client.connect()`
+        :param lazy: pass through parameter to `Client.connect()`
+        :param runtime: pass through parameter to `Client.connect()`
+        :return: temporal client used to send or retrieve tasks
         """
         # Store the passed connection parameters for reconnection purposes
-        cls._client_opts = client_opt
-        cls._data_converter = data_converter
-        cls._interceptors = interceptors or []
-        cls._default_workflow_query_reject_condition = default_workflow_query_reject_condition
-        cls._tls = tls
-        cls._retry_config = retry_config
-        cls._rpc_metadata = rpc_metadata or {}
-        cls._identity = identity
-        cls._lazy = lazy
-        cls._runtime = runtime
-        cls._keep_alive_config = keep_alive_config
+        self._client_opts = client_opt
+        self._data_converter = data_converter
+        self._interceptors = interceptors or []
+        self._default_workflow_query_reject_condition = default_workflow_query_reject_condition
+        self._tls = tls
+        self._retry_config = retry_config
+        self._rpc_metadata = rpc_metadata or {}
+        self._identity = identity
+        self._lazy = lazy
+        self._runtime = runtime
+        self._keep_alive_config = keep_alive_config
 
         if client_opt.auth:
             auth_header_provider = AuthHeaderProvider(client_opt.auth)
-            cls._rpc_metadata.update(auth_header_provider.get_headers())
+            self._rpc_metadata.update(auth_header_provider.get_headers())
 
         if client_opt.encryption and client_opt.encryption.key:
             encryption_codec = EncryptionPayloadCodec(client_opt.encryption.key)
-            cls._data_converter = dataclasses.replace(
-                cls._data_converter, payload_codec=encryption_codec
+            self._data_converter = dataclasses.replace(
+                self._data_converter, payload_codec=encryption_codec
             )
 
         if client_opt.tls_root_cas:
             enc_tls_root_cas = client_opt.tls_root_cas.encode()
             host = client_opt.host.split(":")[0]
-            cls._tls = TLSConfig(server_root_ca_cert=enc_tls_root_cas, domain=host)
+            self._tls = TLSConfig(server_root_ca_cert=enc_tls_root_cas, domain=host)
 
-        if cls._runtime is None and client_opt.prometheus_port:
-            cls._runtime = _init_runtime_with_prometheus(int(client_opt.prometheus_port))
+        if self._runtime is None and client_opt.prometheus_port:
+            self._runtime = _init_runtime_with_prometheus(int(client_opt.prometheus_port))
 
-        asyncio.create_task(cls.reconnect_loop())
+        asyncio.create_task(self.reconnect_loop())
 
-        return await TemporalClient.connect(
-            client_opt.host,
-            namespace=client_opt.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default",
-            data_converter=cls._data_converter,
-            interceptors=cls._interceptors,
-            default_workflow_query_reject_condition=cls._default_workflow_query_reject_condition,
-            tls=cls._tls,
-            retry_config=cls._retry_config,
-            rpc_metadata=cls._rpc_metadata,
-            identity=cls._identity,
-            lazy=cls._lazy,
-            runtime=cls._runtime,
-            keep_alive_config=cls._keep_alive_config,
-        )
+        return await self._reconnect()
 
     @classmethod
-    async def _reconnect(cls):
+    async def _reconnect(self):
         """
         Internal method to reconnect using the saved parameters.
         """
-        if cls._client_opts:
+        if self._client_opts:
             # Refresh the auth headers before reconnecting
-            if cls._client_opts.auth:
-                auth_header_provider = AuthHeaderProvider(cls._client_opts.auth)
-                cls._rpc_metadata.update(auth_header_provider.get_headers())
+            if self._client_opts.auth:
+                auth_header_provider = AuthHeaderProvider(self._client_opts.auth)
+                self._rpc_metadata.update(auth_header_provider.get_headers())
             
-            await TemporalClient.connect(
-                cls._client_opts.host,
-                namespace=cls._client_opts.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default",
-                data_converter=cls._data_converter,
-                interceptors=cls._interceptors,
-                default_workflow_query_reject_condition=cls._default_workflow_query_reject_condition,
-                tls=cls._tls,
-                retry_config=cls._retry_config,
-                rpc_metadata=cls._rpc_metadata,
-                identity=cls._identity,
-                lazy=cls._lazy,
-                runtime=cls._runtime,
-                keep_alive_config=cls._keep_alive_config,
+            return await TemporalClient.connect(
+                self._client_opts.host,
+                namespace=self._client_opts.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default",
+                data_converter=self._data_converter,
+                interceptors=self._interceptors,
+                default_workflow_query_reject_condition=self._default_workflow_query_reject_condition,
+                tls=self._tls,
+                retry_config=self._retry_config,
+                rpc_metadata=self._rpc_metadata,
+                identity=self._identity,
+                lazy=self._lazy,
+                runtime=self._runtime,
+                keep_alive_config=self._keep_alive_config,
             )
