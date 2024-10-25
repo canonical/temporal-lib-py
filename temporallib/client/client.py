@@ -21,6 +21,9 @@ from typing import Union
 import asyncio
 from pydantic_settings import BaseSettings
 import os
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 
 class Options(BaseSettings):
@@ -50,29 +53,38 @@ def _init_runtime_with_prometheus(port: int) -> Runtime:
 
 class Client:
     """
-    A class which wraps the :class:`temporalio.client.Client` class
+    A class which wraps the :class:`temporalio.client.Client` class with reconnect logic.
     """
-    
+
     _is_stop_token_refresh = False
+    _initial_backoff = 60
+    _max_backoff = 600
+    _token_refresh_interval = 3300
 
     @classmethod
     def __del__(self):
         self._is_stop_token_refresh = True
 
     @classmethod
-    async def update_rpc_metadata_loop(self, client_opt, rpc_metadata):
+    async def reconnect_loop(self):
         """
-        Periodically update the rpc_metadata headers
+        Reconnects to the Temporal server periodically when the token expires.
         """
         while not self._is_stop_token_refresh:
-            # By default, refresh every 55 minutes. This is because Google OAuth
-            # tokens expire after 60 minutes.
-            await asyncio.sleep(3300)
-            auth_header_provider = AuthHeaderProvider(client_opt.auth)
-            rpc_metadata.update(auth_header_provider.get_headers())
+            try:
+                await self._reconnect()
+                backoff = self._initial_backoff
+                await asyncio.sleep(self._token_refresh_interval)  # Refresh tokens every ~55 minutes (OAuth tokens last 60 minutes)
+                logging.info("Refreshing token and reconnecting to Temporal server...")
+            except Exception as e:
+                logging.error(f"Failed to reconnect to Temporal server: {e}")
+                logging.info(f"Retrying connection to Temporal server in {backoff} seconds...")
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, self._max_backoff)
 
-    @staticmethod
+    @classmethod
     async def connect(
+        self,
         client_opt: Options,
         *,
         data_converter: DataConverter = default(),
@@ -84,7 +96,7 @@ class Client:
         retry_config: Optional[RetryConfig] = None,
         rpc_metadata: Mapping[str, str] = None,
         identity: Optional[str] = None,
-        lazy: bool = False, 
+        lazy: bool = False,
         runtime: Optional[Runtime] = None,
         keep_alive_config: Optional[KeepAliveConfig] = None,
     ) -> TemporalClient:
@@ -103,47 +115,63 @@ class Client:
         :param runtime: pass through parameter to `Client.connect()`
         :return: temporal client used to send or retrieve tasks
         """
-        if interceptors is None:
-            interceptors = []
-
-        if rpc_metadata is None:
-            rpc_metadata = {}
-
-        namespace = client_opt.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default"
+        # Store the passed connection parameters for reconnection purposes
+        self._client_opts = client_opt
+        self._data_converter = data_converter
+        self._interceptors = interceptors or []
+        self._default_workflow_query_reject_condition = default_workflow_query_reject_condition
+        self._tls = tls
+        self._retry_config = retry_config
+        self._rpc_metadata = rpc_metadata or {}
+        self._identity = identity
+        self._lazy = lazy
+        self._runtime = runtime
+        self._keep_alive_config = keep_alive_config
 
         if client_opt.auth:
             auth_header_provider = AuthHeaderProvider(client_opt.auth)
-            rpc_metadata = dict(rpc_metadata)
-            rpc_metadata.update(auth_header_provider.get_headers())
-            
-            # Start a task to periodically update rpc_metadata
-            asyncio.create_task(Client.update_rpc_metadata_loop(client_opt, rpc_metadata))
+            self._rpc_metadata.update(auth_header_provider.get_headers())
 
         if client_opt.encryption and client_opt.encryption.key:
             encryption_codec = EncryptionPayloadCodec(client_opt.encryption.key)
-            data_converter = dataclasses.replace(
-                data_converter, payload_codec=encryption_codec
+            self._data_converter = dataclasses.replace(
+                self._data_converter, payload_codec=encryption_codec
             )
 
         if client_opt.tls_root_cas:
             enc_tls_root_cas = client_opt.tls_root_cas.encode()
             host = client_opt.host.split(":")[0]
-            tls = TLSConfig(server_root_ca_cert=enc_tls_root_cas, domain=host)
+            self._tls = TLSConfig(server_root_ca_cert=enc_tls_root_cas, domain=host)
 
-        if runtime is None and client_opt.prometheus_port:
-            runtime = _init_runtime_with_prometheus(int(client_opt.prometheus_port))
+        if self._runtime is None and client_opt.prometheus_port:
+            self._runtime = _init_runtime_with_prometheus(int(client_opt.prometheus_port))
 
-        return await TemporalClient.connect(
-            client_opt.host,
-            namespace=namespace,
-            data_converter=data_converter,
-            interceptors=interceptors,
-            default_workflow_query_reject_condition=default_workflow_query_reject_condition,
-            tls=tls,
-            retry_config=retry_config,
-            rpc_metadata=rpc_metadata,
-            identity=identity,
-            lazy=lazy,
-            runtime=runtime,
-            keep_alive_config=keep_alive_config,
-        )
+        asyncio.create_task(self.reconnect_loop())
+
+        return await self._reconnect()
+
+    @classmethod
+    async def _reconnect(self):
+        """
+        Internal method to reconnect using the saved parameters.
+        """
+        if self._client_opts:
+            # Refresh the auth headers before reconnecting
+            if self._client_opts.auth:
+                auth_header_provider = AuthHeaderProvider(self._client_opts.auth)
+                self._rpc_metadata.update(auth_header_provider.get_headers())
+            
+            return await TemporalClient.connect(
+                self._client_opts.host,
+                namespace=self._client_opts.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default",
+                data_converter=self._data_converter,
+                interceptors=self._interceptors,
+                default_workflow_query_reject_condition=self._default_workflow_query_reject_condition,
+                tls=self._tls,
+                retry_config=self._retry_config,
+                rpc_metadata=self._rpc_metadata,
+                identity=self._identity,
+                lazy=self._lazy,
+                runtime=self._runtime,
+                keep_alive_config=self._keep_alive_config,
+            )
