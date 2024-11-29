@@ -9,6 +9,7 @@ from temporalio.worker import Worker as TemporalWorker
 from temporalio.worker import SharedStateManager, WorkflowRunner
 from temporalio.worker.workflow_sandbox import SandboxedWorkflowRunner
 from temporalio.worker._workflow_instance import UnsandboxedWorkflowRunner
+from temporalio.client import Client as TemporalClient
 from temporalio.client import Interceptor, OutboundInterceptor
 from collections import defaultdict
 
@@ -29,12 +30,12 @@ class WorkerOptions:
 
 class Worker(TemporalWorker):
     """
-    A class which wraps the :class:`temporalio.client.Client` class
+    A class which wraps the :class:`temporalio.worker.Worker` class
     """
 
     def __init__(
         self,
-        client: Client,
+        client: Client | TemporalClient,
         task_queue: Optional[str] = None,
         workflows: Sequence[Type] = [],
         activities: Sequence[Callable] = [],
@@ -64,14 +65,16 @@ class Worker(TemporalWorker):
         debug_mode: bool = False,
         disable_eager_activity_execution: bool = False,
         on_fatal_error: Optional[Callable[[BaseException], Awaitable[None]]] = None,
-        use_worker_versioning: bool=False,
+        use_worker_versioning: bool = False,
     ):
         if interceptors is None:
             interceptors = []
 
         self._task_queue = task_queue or os.getenv("TEMPORAL_QUEUE")
         if not self._task_queue:
-            raise ValueError("task_queue must be provided either as a parameter or an environment variable.")
+            raise ValueError(
+                "task_queue must be provided either as a parameter or an environment variable."
+            )
 
         if worker_opt:
             if worker_opt.sentry and worker_opt.sentry.dsn:
