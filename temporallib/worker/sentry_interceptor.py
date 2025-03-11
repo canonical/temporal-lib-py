@@ -107,8 +107,38 @@ class SentryInterceptor(Interceptor):
         """Retrieve the workflow interceptor class based on the provided input."""
         return _SentryWorkflowInterceptor
 
+def group_exceptions(event, hint):
+    """Returns a Sentry event with a custom fingerprint for grouping."""
+    # Override the default grouping behavior
+    if "exception" not in event:
+        return event
+    if "values" not in event["exception"]:
+        return event
+
+    # Default values
+    workflow_name = "unknown_workflow"
+    namespace = "unknown_namespace"
+    activity_type = "unknown_activity"
+
+    # Extract workflow_type and namespace from breadcrumbs (if available)
+    breadcrumbs = event.get("breadcrumbs", {}).get("values", [])
+    for breadcrumb in breadcrumbs:
+        if breadcrumb.get("category") == "temporalio.activity":
+            temporal_data = breadcrumb.get("data", {}).get("temporal_activity", {})
+            workflow_name = temporal_data.get("workflow_type", workflow_name)
+            namespace = temporal_data.get("namespace", namespace)
+            activity_type = temporal_data.get("activity_type", activity_type)
+            break  # Stop at the first found occurrence
+
+    # Set a consistent fingerprint
+    if "exception" in event:
+        exc_type = event["exception"]["values"][0]["type"]
+        event["fingerprint"] = [namespace, workflow_name, activity_type, exc_type]
+
+    return event
 
 def redact_params(event, hint):
+    """Returns a Sentry event with all variables redacted."""
     # Redact parameters from captured events
     if "exception" not in event:
         return event
@@ -124,3 +154,18 @@ def redact_params(event, hint):
                 frame["vars"] = {key: "REDACTED" for key in frame["vars"]}
 
     return event
+
+def create_before_send(redact_params_enabled=False):
+    """
+    Returns a `before_send` function that applies `group_exceptions` 
+    and conditionally applies `redact_params` based on `redact_params`.
+    """
+    def before_send(event, hint):
+        event = group_exceptions(event, hint)
+
+        if redact_params_enabled:
+            event = redact_params(event, hint)
+
+        return event
+
+    return before_send

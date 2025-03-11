@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
-from dataclasses import dataclass
-from typing import Mapping
+from typing import Mapping, Optional
 
 import requests
 from macaroonbakery import bakery, httpbakery
@@ -14,7 +13,7 @@ from google.oauth2 import service_account
 import google.auth.transport.requests
 from typing import Union
 from pydantic_settings import BaseSettings
-from pydantic import Field, BaseModel
+from pydantic import Field
 
 
 class MacaroonAuthOptions(BaseSettings):

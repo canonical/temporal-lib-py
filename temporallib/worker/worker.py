@@ -9,14 +9,13 @@ from temporalio.worker import Worker as TemporalWorker
 from temporalio.worker import SharedStateManager, WorkflowRunner
 from temporalio.worker.workflow_sandbox import SandboxedWorkflowRunner
 from temporalio.worker._workflow_instance import UnsandboxedWorkflowRunner
-from temporalio.client import Interceptor, OutboundInterceptor
-from collections import defaultdict
+from temporalio.client import Interceptor
 
 from temporallib.client import Client
 from temporallib.worker.sentry_interceptor import (
     SentryInterceptor,
     SentryOptions,
-    redact_params,
+    create_before_send,
 )
 import sentry_sdk
 import os
@@ -77,16 +76,12 @@ class Worker(TemporalWorker):
             if worker_opt.sentry and worker_opt.sentry.dsn:
                 interceptors.append(SentryInterceptor())
 
-                before_send = None
-                if worker_opt.sentry.redact_params:
-                    before_send = redact_params
-
                 sentry_sdk.init(
                     dsn=worker_opt.sentry.dsn,
                     release=worker_opt.sentry.release,
                     environment=worker_opt.sentry.environment,
                     sample_rate=worker_opt.sentry.sample_rate,
-                    before_send=before_send,
+                    before_send=create_before_send(worker_opt.sentry.redact_params),
                 )
 
         super().__init__(
