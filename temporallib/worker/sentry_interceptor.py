@@ -2,8 +2,9 @@
 
 from dataclasses import asdict, is_dataclass
 from typing import Any, Optional, Type, Union
-from pydantic_settings import BaseSettings
+
 from pydantic import validator
+from pydantic_settings import BaseSettings
 from temporalio import activity, workflow
 from temporalio.worker import (
     ActivityInboundInterceptor,
@@ -22,6 +23,7 @@ class SentryOptions(BaseSettings):
     """
     Defines the parameters for configuring Sentry error reporting.
     """
+
     dsn: Optional[str]
     release: Optional[str]
     environment: Optional[str]
@@ -31,13 +33,18 @@ class SentryOptions(BaseSettings):
     class Config:
         env_prefix = "TEMPORAL_SENTRY_"
 
-    @validator('sample_rate', pre=True, always=True)
+    @validator("sample_rate", pre=True, always=True)
     def validate_sample_rate(cls, v):
         return float(v) if v is not None else None
 
-    @validator('redact_params', pre=True, always=True)
+    @validator("redact_params", pre=True, always=True)
     def validate_redact_params(cls, v):
-        return v if v is not None else (os.getenv("TEMPORAL_SENTRY_REDACT_PARAMS", "").lower() == "true")
+        return (
+            v
+            if v is not None
+            else (os.getenv("TEMPORAL_SENTRY_REDACT_PARAMS", "").lower() == "true")
+        )
+
 
 def _set_common_workflow_tags(info: Union[workflow.Info, activity.Info]):
     set_tag("temporal.workflow.type", info.workflow_type)

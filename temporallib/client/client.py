@@ -1,27 +1,21 @@
 from __future__ import annotations
 
+import asyncio
 import dataclasses
-from dataclasses import dataclass
+import logging
+import os
 from typing import Callable, Iterable, Mapping, Optional, Union
 
+from pydantic_settings import BaseSettings
 from temporalio.client import Client as TemporalClient
 from temporalio.client import Interceptor, OutboundInterceptor
 from temporalio.common import QueryRejectCondition
 from temporalio.converter import DataConverter, default
-from temporalio.service import TLSConfig, RetryConfig, KeepAliveConfig
-from temporalio.runtime import (
-    PrometheusConfig,
-    Runtime,
-    TelemetryConfig,
-)
+from temporalio.runtime import PrometheusConfig, Runtime, TelemetryConfig
+from temporalio.service import KeepAliveConfig, RetryConfig, TLSConfig
 
-from temporallib.auth import AuthHeaderProvider, AuthOptions, MacaroonAuthOptions, GoogleAuthOptions, KeyPair
+from temporallib.auth import AuthHeaderProvider, AuthOptions
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
-from typing import Union
-import asyncio
-from pydantic_settings import BaseSettings
-import os
-import logging
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,9 +30,11 @@ class Options(BaseSettings):
     prometheus_port: Optional[str] = None
 
     class Config:
-        env_prefix = 'TEMPORAL_'
+        env_prefix = "TEMPORAL_"
+
 
 Options.model_rebuild()
+
 
 def _init_runtime_with_prometheus(port: int) -> Runtime:
     """Create runtime for use with Prometheus metrics.
@@ -49,7 +45,12 @@ def _init_runtime_with_prometheus(port: int) -> Runtime:
     Returns:
         Runtime for temporalio with prometheus.
     """
-    return Runtime(telemetry=TelemetryConfig(metrics=PrometheusConfig(bind_address=f"0.0.0.0:{port}")))
+    return Runtime(
+        telemetry=TelemetryConfig(
+            metrics=PrometheusConfig(bind_address=f"0.0.0.0:{port}")
+        )
+    )
+
 
 class Client:
     """
@@ -74,11 +75,15 @@ class Client:
             try:
                 await self._reconnect()
                 backoff = self._initial_backoff
-                await asyncio.sleep(self._token_refresh_interval)  # Refresh tokens every ~55 minutes (OAuth tokens last 60 minutes)
+                await asyncio.sleep(
+                    self._token_refresh_interval
+                )  # Refresh tokens every ~55 minutes (OAuth tokens last 60 minutes)
                 logging.info("Refreshing token and reconnecting to Temporal server...")
             except Exception as e:
                 logging.error(f"Failed to reconnect to Temporal server: {e}")
-                logging.info(f"Retrying connection to Temporal server in {backoff} seconds...")
+                logging.info(
+                    f"Retrying connection to Temporal server in {backoff} seconds..."
+                )
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, self._max_backoff)
 
@@ -119,7 +124,9 @@ class Client:
         self._client_opts = client_opt
         self._data_converter = data_converter
         self._interceptors = interceptors or []
-        self._default_workflow_query_reject_condition = default_workflow_query_reject_condition
+        self._default_workflow_query_reject_condition = (
+            default_workflow_query_reject_condition
+        )
         self._tls = tls
         self._retry_config = retry_config
         self._rpc_metadata = rpc_metadata or {}
@@ -144,7 +151,9 @@ class Client:
             self._tls = TLSConfig(server_root_ca_cert=enc_tls_root_cas, domain=host)
 
         if self._runtime is None and client_opt.prometheus_port:
-            self._runtime = _init_runtime_with_prometheus(int(client_opt.prometheus_port))
+            self._runtime = _init_runtime_with_prometheus(
+                int(client_opt.prometheus_port)
+            )
 
         asyncio.create_task(self.reconnect_loop())
 
@@ -160,10 +169,12 @@ class Client:
             if self._client_opts.auth:
                 auth_header_provider = AuthHeaderProvider(self._client_opts.auth)
                 self._rpc_metadata.update(auth_header_provider.get_headers())
-            
+
             return await TemporalClient.connect(
                 self._client_opts.host,
-                namespace=self._client_opts.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default",
+                namespace=self._client_opts.namespace
+                or os.getenv("TEMPORAL_NAMESPACE")
+                or "default",
                 data_converter=self._data_converter,
                 interceptors=self._interceptors,
                 default_workflow_query_reject_condition=self._default_workflow_query_reject_condition,
