@@ -1,16 +1,23 @@
 from unittest.mock import MagicMock
 
 import requests
+from google.oauth2 import service_account
 from macaroonbakery import bakery
 
-from temporallib.auth import AuthHeaderProvider, AuthOptions, MacaroonAuthOptions, GoogleAuthOptions, KeyPair
-from google.oauth2 import service_account
+from temporallib.auth import (
+    AuthHeaderProvider,
+    AuthOptions,
+    GoogleAuthOptions,
+    KeyPair,
+    MacaroonAuthOptions,
+)
 
 
 def mock_discharge_all(macaroon, method, key):
     fake_macaroon = MagicMock()
     fake_macaroon.serialize = lambda a: '{"fake": "macaroon"}'
     return [fake_macaroon, fake_macaroon]
+
 
 def mock_get_macaroon(url):
     resp = MagicMock()
@@ -28,6 +35,7 @@ def mock_get_macaroon(url):
     )
     return resp
 
+
 def mock_get_token(cfg_dict, scopes):
     resp = MagicMock()
     resp.status_code = 200
@@ -44,6 +52,7 @@ def mock_get_token(cfg_dict, scopes):
     )
     return resp
 
+
 def test_get_candid_headers(monkeypatch):
     auth_options = AuthOptions(
         provider="candid",
@@ -53,7 +62,7 @@ def test_get_candid_headers(monkeypatch):
             keys=KeyPair(
                 private="MTIzNDU2NzgxMjM0NTY3ODEyMzQ1Njc4MTIzNDU2Nzg=", public="public"
             ),
-        )
+        ),
     )
     auth_provider = AuthHeaderProvider(auth_options)
     monkeypatch.setattr(requests, "get", mock_get_macaroon)
@@ -76,9 +85,11 @@ def test_get_google_headers(monkeypatch):
             token_uri="https://oauth2.googleapis.com/token",
             auth_provider_x509_cert_url="https://www.googleapis.com/oauth2/v1/certs",
             client_x509_cert_url="test",
-        )
+        ),
     )
     auth_provider = AuthHeaderProvider(auth_options)
-    monkeypatch.setattr(service_account.Credentials, "from_service_account_info", mock_get_token)
+    monkeypatch.setattr(
+        service_account.Credentials, "from_service_account_info", mock_get_token
+    )
     header = auth_provider.get_headers()
     assert len(header["authorization"]) > 0

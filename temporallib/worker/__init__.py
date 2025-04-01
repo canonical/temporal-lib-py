@@ -1,10 +1,6 @@
-from temporallib.worker.worker import (
-    Worker,
-    WorkerOptions,
-)
-
 from temporallib.worker.sentry_interceptor import (
-    SentryOptions,
     SentryInterceptor,
+    SentryOptions,
     redact_params,
 )
+from temporallib.worker.worker import Worker, WorkerOptions

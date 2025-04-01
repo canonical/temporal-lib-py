@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Awaitable, Sequence, Callable, Optional, Type
 import concurrent.futures
-
-from datetime import timedelta
-from temporalio.worker import Worker as TemporalWorker
-from temporalio.worker import SharedStateManager, WorkflowRunner
-from temporalio.worker.workflow_sandbox import SandboxedWorkflowRunner
-from temporalio.worker._workflow_instance import UnsandboxedWorkflowRunner
-from temporalio.client import Interceptor, OutboundInterceptor
+import os
 from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import timedelta
+from typing import Awaitable, Callable, Optional, Sequence, Type
+
+import sentry_sdk
+from temporalio.client import Interceptor, OutboundInterceptor
+from temporalio.worker import SharedStateManager
+from temporalio.worker import Worker as TemporalWorker
+from temporalio.worker import WorkflowRunner
+from temporalio.worker._workflow_instance import UnsandboxedWorkflowRunner
+from temporalio.worker.workflow_sandbox import SandboxedWorkflowRunner
 
 from temporallib.client import Client
 from temporallib.worker.sentry_interceptor import (
@@ -18,8 +21,6 @@ from temporallib.worker.sentry_interceptor import (
     SentryOptions,
     redact_params,
 )
-import sentry_sdk
-import os
 
 
 @dataclass
@@ -64,14 +65,16 @@ class Worker(TemporalWorker):
         debug_mode: bool = False,
         disable_eager_activity_execution: bool = False,
         on_fatal_error: Optional[Callable[[BaseException], Awaitable[None]]] = None,
-        use_worker_versioning: bool=False,
+        use_worker_versioning: bool = False,
     ):
         if interceptors is None:
             interceptors = []
 
         self._task_queue = task_queue or os.getenv("TEMPORAL_QUEUE")
         if not self._task_queue:
-            raise ValueError("task_queue must be provided either as a parameter or an environment variable.")
+            raise ValueError(
+                "task_queue must be provided either as a parameter or an environment variable."
+            )
 
         if worker_opt:
             if worker_opt.sentry and worker_opt.sentry.dsn:

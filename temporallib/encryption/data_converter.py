@@ -1,21 +1,20 @@
 import base64
 import binascii
-from dataclasses import dataclass
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
+from pydantic_settings import BaseSettings
 from temporalio.api.common.v1 import Payload
 from temporalio.converter import PayloadCodec
 
 from temporallib.encryption.crypt import decrypt, encrypt
-from pydantic_settings import BaseSettings
-from typing import Optional
+
 
 class EncryptionOptions(BaseSettings):
     key: Optional[str] = None
     compress: Optional[bool] = False
 
     class Config:
-        env_prefix = 'TEMPORAL_ENCRYPTION_'
+        env_prefix = "TEMPORAL_ENCRYPTION_"
 
 
 class EncryptionPayloadCodec(PayloadCodec):
