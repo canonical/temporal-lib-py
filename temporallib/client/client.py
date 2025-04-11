@@ -83,7 +83,7 @@ class Client:
                 )
                 await asyncio.sleep(
                     self._token_refresh_interval
-                )  # Refresh tokens every ~55 minutes (OAuth tokens last 60 minutes)
+                )  # Refresh tokens every ~50 minutes (OAuth tokens last 60 minutes)
                 logging.info("Refreshing token and reconnecting to Temporal server...")
             except Exception as e:
                 logging.error(f"Failed to reconnect to Temporal server: {e}")
