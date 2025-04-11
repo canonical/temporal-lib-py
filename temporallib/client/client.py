@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import datetime
 import logging
 import os
 from typing import Callable, Iterable, Mapping, Optional, Union
@@ -60,7 +61,7 @@ class Client:
     _is_stop_token_refresh = False
     _initial_backoff = 60
     _max_backoff = 600
-    _token_refresh_interval = 3300
+    _token_refresh_interval = 3000
 
     @classmethod
     def __del__(self):
@@ -74,8 +75,13 @@ class Client:
         backoff = self._initial_backoff
         while not self._is_stop_token_refresh:
             try:
+                start = datetime.datetime.now()
                 await self._reconnect()
                 backoff = self._initial_backoff
+                end = datetime.datetime.now()
+                logging.info(
+                    f"Token refreshed in {(end - start).total_seconds()} seconds."
+                )
                 await asyncio.sleep(
                     self._token_refresh_interval
                 )  # Refresh tokens every ~55 minutes (OAuth tokens last 60 minutes)
