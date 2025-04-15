@@ -3,18 +3,16 @@ from __future__ import annotations
 import base64
 import json
 from dataclasses import dataclass
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Union
 
+import google.auth.transport.requests
 import requests
+from google.oauth2 import service_account
 from macaroonbakery import bakery, httpbakery
 from macaroonbakery.bakery import Macaroon, b64decode, macaroon_to_dict
 from macaroonbakery.httpbakery.agent import Agent, AgentInteractor, AuthInfo
-
-from google.oauth2 import service_account
-import google.auth.transport.requests
-from typing import Union
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
-from pydantic import Field, BaseModel
 
 
 class MacaroonAuthOptions(BaseSettings):
@@ -23,8 +21,9 @@ class MacaroonAuthOptions(BaseSettings):
     keys: Optional[KeyPair]
 
     class Config:
-        env_prefix = 'TEMPORAL_CANDID_'
+        env_prefix = "TEMPORAL_CANDID_"
         populate_by_name = True
+
 
 class GoogleAuthOptions(BaseSettings):
     type: str = "service_account"
@@ -36,11 +35,14 @@ class GoogleAuthOptions(BaseSettings):
     auth_uri: str = "https://accounts.google.com/o/oauth2/auth"
     token_uri: str = "https://oauth2.googleapis.com/token"
     auth_provider_x509_cert_url: str = "https://www.googleapis.com/oauth2/v1/certs"
-    client_x509_cert_url: Optional[str] = Field(None, alias="TEMPORAL_OIDC_CLIENT_CERT_URL")
+    client_x509_cert_url: Optional[str] = Field(
+        None, alias="TEMPORAL_OIDC_CLIENT_CERT_URL"
+    )
 
     class Config:
-        env_prefix = 'TEMPORAL_OIDC_'
+        env_prefix = "TEMPORAL_OIDC_"
         populate_by_name = True
+
 
 class KeyPair(BaseSettings):
     private: str = Field(None, alias="TEMPORAL_CANDID_PRIVATE_KEY")
@@ -50,13 +52,12 @@ class KeyPair(BaseSettings):
         populate_by_name = True
 
 
-
 class AuthOptions(BaseSettings):
     config: Optional[Union[MacaroonAuthOptions, GoogleAuthOptions]] = None
     provider: str
 
     class Config:
-        env_prefix = 'TEMPORAL_AUTH_'
+        env_prefix = "TEMPORAL_AUTH_"
 
 
 class AuthHeaderProvider:
