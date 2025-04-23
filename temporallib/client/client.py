@@ -71,6 +71,7 @@ class Client:
         """
         Reconnects to the Temporal server periodically when the token expires.
         """
+        backoff = self._initial_backoff
         while not self._is_stop_token_refresh:
             try:
                 await self._reconnect()
@@ -155,34 +156,31 @@ class Client:
                 int(client_opt.prometheus_port)
             )
 
-        asyncio.create_task(self.reconnect_loop())
+        self._client = await TemporalClient.connect(
+            self._client_opts.host,
+            namespace=self._client_opts.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default",
+            data_converter=self._data_converter,
+            interceptors=self._interceptors,
+            default_workflow_query_reject_condition=self._default_workflow_query_reject_condition,
+            tls=self._tls,
+            retry_config=self._retry_config,
+            rpc_metadata=self._rpc_metadata,
+            identity=self._identity,
+            lazy=self._lazy,
+            runtime=self._runtime,
+            keep_alive_config=self._keep_alive_config,
+        )
 
-        return await self._reconnect()
+        asyncio.create_task(self.reconnect_loop())
+        
+        return self._client
 
     @classmethod
     async def _reconnect(self):
-        """
-        Internal method to reconnect using the saved parameters.
-        """
-        if self._client_opts:
-            # Refresh the auth headers before reconnecting
-            if self._client_opts.auth:
-                auth_header_provider = AuthHeaderProvider(self._client_opts.auth)
-                self._rpc_metadata.update(auth_header_provider.get_headers())
+        # Refresh the auth headers before reconnecting
+        if self._client_opts.auth:
+            auth_header_provider = AuthHeaderProvider(self._client_opts.auth)
+            self._client.rpc_metadata = {**self._client.rpc_metadata, **auth_header_provider.get_headers()}
 
-            return await TemporalClient.connect(
-                self._client_opts.host,
-                namespace=self._client_opts.namespace
-                or os.getenv("TEMPORAL_NAMESPACE")
-                or "default",
-                data_converter=self._data_converter,
-                interceptors=self._interceptors,
-                default_workflow_query_reject_condition=self._default_workflow_query_reject_condition,
-                tls=self._tls,
-                retry_config=self._retry_config,
-                rpc_metadata=self._rpc_metadata,
-                identity=self._identity,
-                lazy=self._lazy,
-                runtime=self._runtime,
-                keep_alive_config=self._keep_alive_config,
-            )
+        logging.debug("Testing Temporal server connection")
+        await self._client.count_workflows()
