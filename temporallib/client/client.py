@@ -61,7 +61,7 @@ class Client:
     _is_stop_token_refresh = False
     _initial_backoff = 60
     _max_backoff = 600
-    _token_refresh_interval = 3000
+    _token_refresh_interval = 120
 
     @classmethod
     def __del__(self):
