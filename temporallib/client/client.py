@@ -57,6 +57,7 @@ class Client:
     A class which wraps the :class:`temporalio.client.Client` class with reconnect logic.
     """
 
+    _client: TemporalClient
     _is_stop_token_refresh = False
     _initial_backoff = 60
     _max_backoff = 600
@@ -65,6 +66,13 @@ class Client:
     @classmethod
     def __del__(self):
         self._is_stop_token_refresh = True
+
+    @classmethod
+    def disconnect(self):
+        """Stops the reconnect loop and closes the client."""
+        self._is_stop_token_refresh = True
+        del self._client
+        del self._runtime
 
     @classmethod
     async def reconnect_loop(self):
