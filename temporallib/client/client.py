@@ -75,7 +75,7 @@ class Client:
         del self._runtime
 
     @classmethod
-    def instance(self):
+    def instance(self) -> TemporalClient:
         """Returns the underlying TemporalClient instance."""
         return self._client
 
