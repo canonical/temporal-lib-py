@@ -57,7 +57,7 @@ class Client:
     A class which wraps the :class:`temporalio.client.Client` class with reconnect logic.
     """
 
-    _client: TemporalClient
+    _client: TemporalClient = None
     _is_stop_token_refresh = False
     _initial_backoff = 60
     _max_backoff = 600
@@ -75,8 +75,8 @@ class Client:
         del self._runtime
 
     @classmethod
-    def instance(self) -> TemporalClient:
-        """Returns the underlying TemporalClient instance."""
+    def instance(self) -> Optional[TemporalClient]:
+        """Returns the underlying TemporalClient instance, if it exists."""
         return self._client
 
     @classmethod
