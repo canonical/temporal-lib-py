@@ -75,6 +75,11 @@ class Client:
         del self._runtime
 
     @classmethod
+    def instance(self):
+        """Returns the underlying TemporalClient instance."""
+        return self._client
+
+    @classmethod
     async def reconnect_loop(self):
         """
         Reconnects to the Temporal server periodically when the token expires.
