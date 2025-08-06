@@ -21,6 +21,5 @@ jobs:
           mode: qserver
           project: temporal-lib-py
           branchdir: .
-          nocalc: true
           ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
           installTics: true
