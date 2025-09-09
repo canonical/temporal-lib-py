@@ -1,0 +1,28 @@
+# .github/workflows/tiobe-scan.yaml
+name: Tiobe TICS Analysis
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * 1"
+
+jobs:
+  tics-scan:
+    runs-on: [self-hosted, linux, amd64, tiobe, noble]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Package coverage for TICS
+        run: |
+          mkdir -p .cover
+
+      - name: Run TICS analysis
+        uses: tiobe/tics-github-action@v3
+        with:
+          viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
+          mode: qserver
+          project: temporal-lib-py
+          branchdir: .
+          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
+          installTics: true
