@@ -11,9 +11,6 @@ files = [
     {file = "annotated_types-0.7.0.tar.gz", hash = "sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89"},
 ]
 
-[package.dependencies]
-typing-extensions = {version = ">=4.0.0", markers = "python_version < \"3.9\""}
-
 [[package]]
 name = "black"
 version = "22.12.0"
@@ -436,6 +433,20 @@ files = [
     {file = "mypy_extensions-1.0.0-py3-none-any.whl", hash = "sha256:4392f6c0eb8a5668a69e23d168ffa70f0be9ccfd32b5cc2d26a34ae5b844552d"},
     {file = "mypy_extensions-1.0.0.tar.gz", hash = "sha256:75dbf8955dc00442a438fc4d0666508a9a97b6bd41aa2f0ffe9d2f2725af0782"},
 ]
+
+[[package]]
+name = "nexus-rpc"
+version = "1.1.0"
+description = "Nexus Python SDK"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "nexus_rpc-1.1.0-py3-none-any.whl", hash = "sha256:d1b007af2aba186a27e736f8eaae39c03aed05b488084ff6c3d1785c9ba2ad38"},
+    {file = "nexus_rpc-1.1.0.tar.gz", hash = "sha256:d65ad6a2f54f14e53ebe39ee30555eaeb894102437125733fb13034a04a44553"},
+]
+
+[package.dependencies]
+typing-extensions = ">=4.12.2"
 
 [[package]]
 name = "packaging"
@@ -988,28 +999,31 @@ files = [
 
 [[package]]
 name = "temporalio"
-version = "1.8.0"
+version = "1.18.1"
 description = "Temporal.io Python SDK"
 optional = false
-python-versions = "<4.0,>=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "temporalio-1.8.0-cp38-abi3-macosx_10_9_x86_64.whl", hash = "sha256:c6acb217d4bd7297389db756dd9da73ef2bae17f6afee1faa8bf77be200e8b93"},
-    {file = "temporalio-1.8.0-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:6ec61660631b2513ce710b468068135280996af105571126295c9645bf29ee22"},
-    {file = "temporalio-1.8.0-cp38-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:4ee13d155dc917e7792b87d1e37b1a0e837c361deb722ccc294edaa5344f2fa2"},
-    {file = "temporalio-1.8.0-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:6b67c115b6eaceddae373dc2c597e5ad5dd567282f4bb0ee63c99124f5f0c12d"},
-    {file = "temporalio-1.8.0-cp38-abi3-win_amd64.whl", hash = "sha256:6a45571c09859b6cbf33be26dd5d5fab7e7ee3625750a7b91ebde5770e61015b"},
-    {file = "temporalio-1.8.0.tar.gz", hash = "sha256:b9e239b8bfd60126a4b591c6e2e691392b69afc8cac9db452d692654bf85f9cc"},
+    {file = "temporalio-1.18.1-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:748c0ec9f48aa1ab612a58fe516d9be28c1dd98194f560fd28a2ab09c6e2ca5e"},
+    {file = "temporalio-1.18.1-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:5a789e7c483582d6d7dd49e7d2d2730d82dc94d9342fe71be76fa67afa4e6865"},
+    {file = "temporalio-1.18.1-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a9f5cf75c4b887476a2b39d022a9c44c495f5eb1668087a022bd9258d3adddf9"},
+    {file = "temporalio-1.18.1-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f28a69394bf18b4a1c22a6a784d348e93482858c505d054570b278f0f5e13e9c"},
+    {file = "temporalio-1.18.1-cp39-abi3-win_amd64.whl", hash = "sha256:552b360f9ccdac8d5fc5d19c6578c2f6f634399ccc37439c4794aa58487f7fd5"},
+    {file = "temporalio-1.18.1.tar.gz", hash = "sha256:46394498f8822e61b3ce70d6735de7618f5af0501fb90f3f90f4b4f9e7816d77"},
 ]
 
 [package.dependencies]
-protobuf = ">=3.20"
-python-dateutil = {version = ">=2.8.2,<3.0.0", markers = "python_version < \"3.11\""}
+nexus-rpc = "1.1.0"
+protobuf = ">=3.20,<7.0.0"
+python-dateutil = {version = ">=2.8.2,<3", markers = "python_full_version < \"3.11\""}
 types-protobuf = ">=3.20"
-typing-extensions = ">=4.2.0,<5.0.0"
+typing-extensions = ">=4.2.0,<5"
 
 [package.extras]
-grpc = ["grpcio (>=1.59.0,<2.0.0)"]
-opentelemetry = ["opentelemetry-api (>=1.11.1,<2.0.0)", "opentelemetry-sdk (>=1.11.1,<2.0.0)"]
+grpc = ["grpcio (>=1.48.2,<2)"]
+openai-agents = ["eval-type-backport (>=0.2.2)", "mcp (>=1.9.4,<2)", "openai-agents (>=0.3,<0.4)"]
+opentelemetry = ["opentelemetry-api (>=1.11.1,<2)", "opentelemetry-sdk (>=1.11.1,<2)"]
+pydantic = ["pydantic (>=2.0.0,<3)"]
 
 [[package]]
 name = "tomli"
@@ -1063,5 +1077,5 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.8"
-content-hash = "08c131d86e4ddd63b227604f62d0146242972d4da1d2ddaddf1d102297bb8812"
+python-versions = "^3.9"
+content-hash = "a1f9f2cc34b6fe30119c2be857c4a81ecef652715294f7154fe16b9901ffb9f2"
