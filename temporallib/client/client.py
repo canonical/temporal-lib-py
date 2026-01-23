@@ -61,6 +61,7 @@ class Client:
     _initial_backoff = 60
     _max_backoff = 600
     _token_refresh_interval = 3300
+    _reconnect_task: asyncio.Task | None = None
 
     @classmethod
     def __del__(self):
@@ -68,8 +69,20 @@ class Client:
 
     @classmethod
     def disconnect(self):
-        """Stops the reconnect loop and closes the client."""
+        """Stops the reconnect loop and closes the client.
+
+        This method cancels the background reconnect task (if any) and awaits its
+        completion so it doesn't remain pending. It also clears references to the
+        underlying client and runtime.
+        """
+        # Signal reconnect loop to stop
         self._is_stop_token_refresh = True
+
+        # Cancel the background reconnect task if it exists
+        if self._reconnect_task:
+            self._reconnect_task.cancel()
+            del self._reconnect_task
+
         del self._client
         del self._runtime
 
@@ -185,7 +198,8 @@ class Client:
             keep_alive_config=self._keep_alive_config,
         )
 
-        asyncio.create_task(self.reconnect_loop())
+        # Start reconnect loop in background and keep a reference
+        self._reconnect_task = asyncio.create_task(self.reconnect_loop())
 
         return self._client
 
