@@ -6,7 +6,7 @@ import logging
 import os
 from typing import Callable, Iterable, Mapping, Optional, Union
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client as TemporalClient
 from temporalio.client import Interceptor, OutboundInterceptor
 from temporalio.common import QueryRejectCondition
@@ -29,8 +29,7 @@ class Options(BaseSettings):
     auth: Optional[AuthOptions] = None
     prometheus_port: Optional[str] = None
 
-    class Config:
-        env_prefix = "TEMPORAL_"
+    model_config = SettingsConfigDict(env_prefix="TEMPORAL_")
 
 
 Options.model_rebuild()
@@ -171,7 +170,9 @@ class Client:
 
         self._client = await TemporalClient.connect(
             self._client_opts.host,
-            namespace=self._client_opts.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default",
+            namespace=self._client_opts.namespace
+            or os.getenv("TEMPORAL_NAMESPACE")
+            or "default",
             data_converter=self._data_converter,
             interceptors=self._interceptors,
             default_workflow_query_reject_condition=self._default_workflow_query_reject_condition,
@@ -185,7 +186,7 @@ class Client:
         )
 
         asyncio.create_task(self.reconnect_loop())
-        
+
         return self._client
 
     @classmethod
@@ -193,7 +194,10 @@ class Client:
         # Refresh the auth headers before reconnecting
         if self._client_opts.auth:
             auth_header_provider = AuthHeaderProvider(self._client_opts.auth)
-            self._client.rpc_metadata = {**self._client.rpc_metadata, **auth_header_provider.get_headers()}
+            self._client.rpc_metadata = {
+                **self._client.rpc_metadata,
+                **auth_header_provider.get_headers(),
+            }
 
         logging.debug("Testing Temporal server connection")
         await self._client.count_workflows()

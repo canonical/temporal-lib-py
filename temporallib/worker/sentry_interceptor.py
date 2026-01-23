@@ -1,10 +1,11 @@
 """Temporal client worker Sentry interceptor."""
 
+import os
 from dataclasses import asdict, is_dataclass
 from typing import Any, Optional, Type, Union
 
 from pydantic import validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio import activity, workflow
 from temporalio.worker import (
     ActivityInboundInterceptor,
@@ -30,8 +31,7 @@ class SentryOptions(BaseSettings):
     sample_rate: Optional[float] = 1.0
     redact_params: Optional[bool] = False
 
-    class Config:
-        env_prefix = "TEMPORAL_SENTRY_"
+    model_config = SettingsConfigDict(env_prefix="TEMPORAL_SENTRY_")
 
     @validator("sample_rate", pre=True, always=True)
     def validate_sample_rate(cls, v):
