@@ -62,6 +62,7 @@ class Client:
     _initial_backoff = 60
     _max_backoff = 600
     _token_refresh_interval = 3300
+    _reconnect_task: asyncio.Task | None = None
 
     @classmethod
     def __del__(self):
@@ -69,8 +70,20 @@ class Client:
 
     @classmethod
     def disconnect(self):
-        """Stops the reconnect loop and closes the client."""
+        """Stops the reconnect loop and closes the client.
+
+        This method cancels the background reconnect task (if any) and awaits its
+        completion so it doesn't remain pending. It also clears references to the
+        underlying client and runtime.
+        """
+        # Signal reconnect loop to stop
         self._is_stop_token_refresh = True
+
+        # Cancel the background reconnect task if it exists
+        if self._reconnect_task:
+            self._reconnect_task.cancel()
+            del self._reconnect_task
+
         del self._client
         del self._runtime
 
@@ -171,7 +184,9 @@ class Client:
 
         self._client = await TemporalClient.connect(
             self._client_opts.host,
-            namespace=self._client_opts.namespace or os.getenv("TEMPORAL_NAMESPACE") or "default",
+            namespace=self._client_opts.namespace
+            or os.getenv("TEMPORAL_NAMESPACE")
+            or "default",
             data_converter=self._data_converter,
             interceptors=self._interceptors,
             default_workflow_query_reject_condition=self._default_workflow_query_reject_condition,
@@ -184,8 +199,9 @@ class Client:
             keep_alive_config=self._keep_alive_config,
         )
 
-        asyncio.create_task(self.reconnect_loop())
-        
+        # Start reconnect loop in background and keep a reference
+        self._reconnect_task = asyncio.create_task(self.reconnect_loop())
+
         return self._client
 
     @classmethod
@@ -193,7 +209,10 @@ class Client:
         # Refresh the auth headers before reconnecting
         if self._client_opts.auth:
             auth_header_provider = AuthHeaderProvider(self._client_opts.auth)
-            self._client.rpc_metadata = {**self._client.rpc_metadata, **auth_header_provider.get_headers()}
+            self._client.rpc_metadata = {
+                **self._client.rpc_metadata,
+                **auth_header_provider.get_headers(),
+            }
 
         logging.debug("Testing Temporal server connection")
         await self._client.count_workflows()
