@@ -12,7 +12,7 @@ from macaroonbakery import bakery, httpbakery
 from macaroonbakery.bakery import Macaroon, b64decode, macaroon_to_dict
 from macaroonbakery.httpbakery.agent import Agent, AgentInteractor, AuthInfo
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class MacaroonAuthOptions(BaseSettings):
@@ -20,9 +20,9 @@ class MacaroonAuthOptions(BaseSettings):
     username: str
     keys: Optional[KeyPair]
 
-    class Config:
-        env_prefix = "TEMPORAL_CANDID_"
-        populate_by_name = True
+    model_config = SettingsConfigDict(
+        env_prefix="TEMPORAL_CANDID_", populate_by_name=True
+    )
 
 
 class GoogleAuthOptions(BaseSettings):
@@ -39,25 +39,23 @@ class GoogleAuthOptions(BaseSettings):
         None, alias="TEMPORAL_OIDC_CLIENT_CERT_URL"
     )
 
-    class Config:
-        env_prefix = "TEMPORAL_OIDC_"
-        populate_by_name = True
+    model_config = SettingsConfigDict(
+        env_prefix="TEMPORAL_OIDC_", populate_by_name=True
+    )
 
 
 class KeyPair(BaseSettings):
     private: str = Field(None, alias="TEMPORAL_CANDID_PRIVATE_KEY")
     public: str = Field(None, alias="TEMPORAL_CANDID_PUBLIC_KEY")
 
-    class Config:
-        populate_by_name = True
+    model_config = SettingsConfigDict(populate_by_name=True)
 
 
 class AuthOptions(BaseSettings):
     config: Optional[Union[MacaroonAuthOptions, GoogleAuthOptions]] = None
     provider: str
 
-    class Config:
-        env_prefix = "TEMPORAL_AUTH_"
+    model_config = SettingsConfigDict(env_prefix="TEMPORAL_AUTH_")
 
 
 class AuthHeaderProvider:

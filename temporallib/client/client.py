@@ -6,7 +6,7 @@ import logging
 import os
 from typing import Callable, Iterable, Mapping, Optional, Union
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client as TemporalClient
 from temporalio.client import Interceptor, OutboundInterceptor
 from temporalio.common import QueryRejectCondition
@@ -29,8 +29,7 @@ class Options(BaseSettings):
     auth: Optional[AuthOptions] = None
     prometheus_port: Optional[str] = None
 
-    class Config:
-        env_prefix = "TEMPORAL_"
+    model_config = SettingsConfigDict(env_prefix="TEMPORAL_")
 
 
 Options.model_rebuild()
