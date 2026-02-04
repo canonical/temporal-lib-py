@@ -3,11 +3,14 @@ name: Tiobe TICS Analysis
 
 on:
   workflow_dispatch:
+  pull_request:
   schedule:
     - cron: "17 2 * * 1"
 
 jobs:
   tics-scan:
+    # Only run if we have access to secrets.
+    if: github.event_name != 'pull_request' || github.repository == github.event.pull_request.head.repo.full_name
     runs-on: [self-hosted, linux, amd64, tiobe, noble]
     steps:
       - name: Checkout code
