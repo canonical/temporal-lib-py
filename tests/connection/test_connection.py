@@ -21,6 +21,12 @@ async def mock_connect(_):
     return MagicMock()
 
 
+@pytest.fixture(autouse=True)
+async def cleanup_client_reconnect_task():
+    yield
+    await Client._cancel_reconnect_task()
+
+
 @pytest.mark.asyncio
 async def test_connect_candid(monkeypatch):
     monkeypatch.setattr(requests, "get", mock_get_macaroon)
