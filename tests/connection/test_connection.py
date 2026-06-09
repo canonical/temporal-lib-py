@@ -1,9 +1,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-import requests
-from google.oauth2 import service_account
-from macaroonbakery import bakery
 from temporalio.service import ServiceClient
 
 from temporallib.auth import (
@@ -14,23 +11,30 @@ from temporallib.auth import (
 )
 from temporallib.client import Client, Options
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
-from tests.auth.test_auth import mock_discharge_all, mock_get_macaroon, mock_get_token
 
 
 async def mock_connect(_):
     return MagicMock()
 
 
+async def mock_get_auth_headers(auth):
+    return {"authorization": f"Bearer {auth.provider}"}
+
+
+async def mock_reconnect_loop():
+    pass
+
+
 @pytest.fixture(autouse=True)
-async def cleanup_client_reconnect_task():
+async def cleanup_client_reconnect_task(monkeypatch):
+    monkeypatch.setattr(Client, "reconnect_loop", mock_reconnect_loop)
     yield
     await Client._cancel_reconnect_task()
 
 
 @pytest.mark.asyncio
 async def test_connect_candid(monkeypatch):
-    monkeypatch.setattr(requests, "get", mock_get_macaroon)
-    monkeypatch.setattr(bakery, "discharge_all", mock_discharge_all)
+    monkeypatch.setattr(Client, "_get_auth_headers", mock_get_auth_headers)
     monkeypatch.setattr(ServiceClient, "connect", mock_connect)
     opts = Options(
         host="test",
@@ -77,8 +81,7 @@ async def test_connect_candid_env_variables(monkeypatch):
     )
     monkeypatch.setenv("TEMPORAL_TLS_ROOT_CAS", "certificate")
 
-    monkeypatch.setattr(requests, "get", mock_get_macaroon)
-    monkeypatch.setattr(bakery, "discharge_all", mock_discharge_all)
+    monkeypatch.setattr(Client, "_get_auth_headers", mock_get_auth_headers)
     monkeypatch.setattr(ServiceClient, "connect", mock_connect)
 
     opts = Options(
@@ -95,9 +98,7 @@ async def test_connect_candid_env_variables(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_connect_google(monkeypatch):
-    monkeypatch.setattr(
-        service_account.Credentials, "from_service_account_info", mock_get_token
-    )
+    monkeypatch.setattr(Client, "_get_auth_headers", mock_get_auth_headers)
     monkeypatch.setattr(ServiceClient, "connect", mock_connect)
     opts = Options(
         host="test",
@@ -157,9 +158,7 @@ async def test_connect_google_env_variables(monkeypatch):
     )
     monkeypatch.setenv("TEMPORAL_TLS_ROOT_CAS", "certificate")
 
-    monkeypatch.setattr(
-        service_account.Credentials, "from_service_account_info", mock_get_token
-    )
+    monkeypatch.setattr(Client, "_get_auth_headers", mock_get_auth_headers)
     monkeypatch.setattr(ServiceClient, "connect", mock_connect)
 
     opts = Options(

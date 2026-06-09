@@ -191,8 +191,7 @@ class Client:
         self._keep_alive_config = keep_alive_config
 
         if client_opt.auth:
-            auth_header_provider = AuthHeaderProvider(client_opt.auth)
-            self._rpc_metadata.update(auth_header_provider.get_headers())
+            self._rpc_metadata.update(await self._get_auth_headers(client_opt.auth))
 
         if client_opt.encryption and client_opt.encryption.key:
             encryption_codec = EncryptionPayloadCodec(client_opt.encryption.key)
