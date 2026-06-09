@@ -81,15 +81,41 @@ class Client:
         # Cancel the background reconnect task if it exists
         if self._reconnect_task:
             self._reconnect_task.cancel()
-            del self._reconnect_task
+            self._reconnect_task = None
 
-        del self._client
-        del self._runtime
+        if hasattr(self, "_client"):
+            del self._client
+        if hasattr(self, "_runtime"):
+            del self._runtime
 
     @classmethod
     def instance(self) -> Optional[TemporalClient]:
         """Returns the underlying TemporalClient instance, if it exists."""
         return self._client
+
+    @classmethod
+    async def _get_auth_headers(self, auth: AuthOptions) -> Mapping[str, str]:
+        auth_header_provider = AuthHeaderProvider(auth)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, auth_header_provider.get_headers)
+
+    @classmethod
+    async def _cancel_reconnect_task(self) -> None:
+        task = self._reconnect_task
+        self._reconnect_task = None
+        self._is_stop_token_refresh = True
+        if not task or task.done():
+            return
+
+        try:
+            current_loop = asyncio.get_running_loop()
+            task_loop = task.get_loop()
+        except RuntimeError:
+            return
+
+        if task_loop is current_loop and not task_loop.is_closed():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
 
     @classmethod
     async def reconnect_loop(self):
@@ -146,6 +172,9 @@ class Client:
         :param runtime: pass through parameter to `Client.connect()`
         :return: temporal client used to send or retrieve tasks
         """
+        await self._cancel_reconnect_task()
+        self._is_stop_token_refresh = False
+
         # Store the passed connection parameters for reconnection purposes
         self._client_opts = client_opt
         self._data_converter = data_converter
@@ -162,8 +191,7 @@ class Client:
         self._keep_alive_config = keep_alive_config
 
         if client_opt.auth:
-            auth_header_provider = AuthHeaderProvider(client_opt.auth)
-            self._rpc_metadata.update(auth_header_provider.get_headers())
+            self._rpc_metadata.update(await self._get_auth_headers(client_opt.auth))
 
         if client_opt.encryption and client_opt.encryption.key:
             encryption_codec = EncryptionPayloadCodec(client_opt.encryption.key)
@@ -207,10 +235,9 @@ class Client:
     async def _reconnect(self):
         # Refresh the auth headers before reconnecting
         if self._client_opts.auth:
-            auth_header_provider = AuthHeaderProvider(self._client_opts.auth)
             self._client.rpc_metadata = {
                 **self._client.rpc_metadata,
-                **auth_header_provider.get_headers(),
+                **await self._get_auth_headers(self._client_opts.auth),
             }
 
         logging.debug("Testing Temporal server connection")
