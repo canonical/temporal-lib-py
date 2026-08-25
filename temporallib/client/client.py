@@ -12,7 +12,12 @@ from temporalio.client import Interceptor, OutboundInterceptor
 from temporalio.common import QueryRejectCondition
 from temporalio.converter import DataConverter, default
 from temporalio.runtime import PrometheusConfig, Runtime, TelemetryConfig
-from temporalio.service import KeepAliveConfig, RetryConfig, TLSConfig
+from temporalio.service import (
+    HttpConnectProxyConfig,
+    KeepAliveConfig,
+    RetryConfig,
+    TLSConfig,
+)
 
 from temporallib.auth import AuthHeaderProvider, AuthOptions
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
@@ -156,6 +161,7 @@ class Client:
         lazy: bool = False,
         runtime: Optional[Runtime] = None,
         keep_alive_config: Optional[KeepAliveConfig] = None,
+        http_connect_proxy_config: Optional[HttpConnectProxyConfig] = None,
     ) -> TemporalClient:
         """
         A method which wraps the temporal :func:`temporalio.client.Client.connect` method by adding
@@ -170,6 +176,7 @@ class Client:
         :param identity: pass through parameter to `Client.connect()`
         :param lazy: pass through parameter to `Client.connect()`
         :param runtime: pass through parameter to `Client.connect()`
+        :param http_connect_proxy_config: pass through parameter to `Client.connect()` to connect through an HTTP CONNECT proxy
         :return: temporal client used to send or retrieve tasks
         """
         await self._cancel_reconnect_task()
@@ -189,6 +196,7 @@ class Client:
         self._lazy = lazy
         self._runtime = runtime
         self._keep_alive_config = keep_alive_config
+        self._http_connect_proxy_config = http_connect_proxy_config
 
         if client_opt.auth:
             self._rpc_metadata.update(await self._get_auth_headers(client_opt.auth))
@@ -224,6 +232,7 @@ class Client:
             lazy=self._lazy,
             runtime=self._runtime,
             keep_alive_config=self._keep_alive_config,
+            http_connect_proxy_config=self._http_connect_proxy_config,
         )
 
         # Start reconnect loop in background and keep a reference

@@ -1,7 +1,8 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from temporalio.service import ServiceClient
+from temporalio.client import Client as TemporalClient
+from temporalio.service import HttpConnectProxyConfig, ServiceClient
 
 from temporallib.auth import (
     AuthOptions,
@@ -170,3 +171,26 @@ async def test_connect_google_env_variables(monkeypatch):
     assert isinstance(opts.auth, AuthOptions)
     assert isinstance(opts.auth.config, GoogleAuthOptions)
     assert isinstance(client.data_converter.payload_codec, EncryptionPayloadCodec)
+
+
+@pytest.mark.asyncio
+async def test_connect_forwards_http_connect_proxy_config(monkeypatch):
+    connect_mock = AsyncMock(return_value=MagicMock())
+    monkeypatch.setattr(TemporalClient, "connect", connect_mock)
+    opts = Options(host="test", queue="test queue", namespace="test namespace")
+    proxy_config = HttpConnectProxyConfig(target_host="proxy:3128")
+
+    await Client.connect(opts, http_connect_proxy_config=proxy_config)
+
+    assert connect_mock.call_args.kwargs["http_connect_proxy_config"] is proxy_config
+
+
+@pytest.mark.asyncio
+async def test_connect_http_connect_proxy_config_defaults_to_none(monkeypatch):
+    connect_mock = AsyncMock(return_value=MagicMock())
+    monkeypatch.setattr(TemporalClient, "connect", connect_mock)
+    opts = Options(host="test", queue="test queue", namespace="test namespace")
+
+    await Client.connect(opts)
+
+    assert connect_mock.call_args.kwargs["http_connect_proxy_config"] is None
