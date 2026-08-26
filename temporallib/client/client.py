@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Callable, Iterable, Mapping, Optional, Union
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client as TemporalClient
 from temporalio.client import Interceptor, OutboundInterceptor
@@ -25,6 +26,14 @@ from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 logging.basicConfig(level=logging.INFO)
 
 
+class ProxyOptions(BaseSettings):
+    host: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[SecretStr] = None
+
+    model_config = SettingsConfigDict(env_prefix="TEMPORAL_PROXY_")
+
+
 class Options(BaseSettings):
     host: Optional[str] = None
     queue: Optional[str] = None
@@ -33,6 +42,7 @@ class Options(BaseSettings):
     tls_root_cas: Optional[str] = None
     auth: Optional[AuthOptions] = None
     prometheus_port: Optional[str] = None
+    proxy: Optional[ProxyOptions] = None
 
     model_config = SettingsConfigDict(env_prefix="TEMPORAL_")
 
@@ -105,6 +115,17 @@ class Client:
         return await loop.run_in_executor(None, auth_header_provider.get_headers)
 
     @classmethod
+    def _build_proxy_config(
+        self, proxy: ProxyOptions
+    ) -> Optional[HttpConnectProxyConfig]:
+        if not proxy or not proxy.host:
+            return None
+        basic_auth = None
+        if proxy.username and proxy.password:
+            basic_auth = (proxy.username, proxy.password.get_secret_value())
+        return HttpConnectProxyConfig(target_host=proxy.host, basic_auth=basic_auth)
+
+    @classmethod
     async def _cancel_reconnect_task(self) -> None:
         task = self._reconnect_task
         self._reconnect_task = None
@@ -161,7 +182,6 @@ class Client:
         lazy: bool = False,
         runtime: Optional[Runtime] = None,
         keep_alive_config: Optional[KeepAliveConfig] = None,
-        http_connect_proxy_config: Optional[HttpConnectProxyConfig] = None,
     ) -> TemporalClient:
         """
         A method which wraps the temporal :func:`temporalio.client.Client.connect` method by adding
@@ -176,7 +196,6 @@ class Client:
         :param identity: pass through parameter to `Client.connect()`
         :param lazy: pass through parameter to `Client.connect()`
         :param runtime: pass through parameter to `Client.connect()`
-        :param http_connect_proxy_config: pass through parameter to `Client.connect()` to connect through an HTTP CONNECT proxy
         :return: temporal client used to send or retrieve tasks
         """
         await self._cancel_reconnect_task()
@@ -196,7 +215,7 @@ class Client:
         self._lazy = lazy
         self._runtime = runtime
         self._keep_alive_config = keep_alive_config
-        self._http_connect_proxy_config = http_connect_proxy_config
+        self._http_connect_proxy_config = self._build_proxy_config(client_opt.proxy)
 
         if client_opt.auth:
             self._rpc_metadata.update(await self._get_auth_headers(client_opt.auth))

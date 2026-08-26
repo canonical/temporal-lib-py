@@ -11,6 +11,7 @@ from temporallib.auth import (
     MacaroonAuthOptions,
 )
 from temporallib.client import Client, Options
+from temporallib.client.client import ProxyOptions
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 
 
@@ -174,23 +175,35 @@ async def test_connect_google_env_variables(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_connect_forwards_http_connect_proxy_config(monkeypatch):
+async def test_connect_options_proxy_forwarded(monkeypatch):
     connect_mock = AsyncMock(return_value=MagicMock())
     monkeypatch.setattr(TemporalClient, "connect", connect_mock)
-    opts = Options(host="test", queue="test queue", namespace="test namespace")
-    proxy_config = HttpConnectProxyConfig(target_host="proxy:3128")
-
-    await Client.connect(opts, http_connect_proxy_config=proxy_config)
-
-    assert connect_mock.call_args.kwargs["http_connect_proxy_config"] is proxy_config
-
-
-@pytest.mark.asyncio
-async def test_connect_http_connect_proxy_config_defaults_to_none(monkeypatch):
-    connect_mock = AsyncMock(return_value=MagicMock())
-    monkeypatch.setattr(TemporalClient, "connect", connect_mock)
-    opts = Options(host="test", queue="test queue", namespace="test namespace")
+    opts = Options(
+        host="test",
+        namespace="test namespace",
+        proxy=ProxyOptions(host="proxy:3128"),
+    )
 
     await Client.connect(opts)
 
-    assert connect_mock.call_args.kwargs["http_connect_proxy_config"] is None
+    cfg = connect_mock.call_args.kwargs["http_connect_proxy_config"]
+    assert isinstance(cfg, HttpConnectProxyConfig)
+    assert cfg.target_host == "proxy:3128"
+    assert cfg.basic_auth is None
+
+
+@pytest.mark.asyncio
+async def test_connect_options_proxy_with_basic_auth(monkeypatch):
+    connect_mock = AsyncMock(return_value=MagicMock())
+    monkeypatch.setattr(TemporalClient, "connect", connect_mock)
+    opts = Options(
+        host="test",
+        namespace="test namespace",
+        proxy=ProxyOptions(host="proxy:3128", username="user", password="secret"),
+    )
+
+    await Client.connect(opts)
+
+    cfg = connect_mock.call_args.kwargs["http_connect_proxy_config"]
+    assert cfg.target_host == "proxy:3128"
+    assert cfg.basic_auth == ("user", "secret")
