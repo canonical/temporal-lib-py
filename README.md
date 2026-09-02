@@ -115,6 +115,46 @@ tls_root_cas: |
   'base64 certificate'
 ```
 
+#### Connecting through an HTTP CONNECT proxy
+
+When all egress traffic must traverse an HTTP CONNECT proxy (e.g. a corporate or
+cloud egress proxy), set the `proxy` option. Note that the underlying Temporal
+Rust core does not read the `HTTPS_PROXY` / `HTTP_PROXY` / `GRPC_PROXY` /
+`NO_PROXY` environment variables, so the proxy must be configured explicitly.
+
+```python
+from temporallib.client import Client, Options
+from temporallib.client.client import ProxyOptions
+async def main():
+    cfg = Options(
+        host="localhost:7233",
+        proxy=ProxyOptions(host="proxy-host:3128"),
+    )
+    client = await Client.connect(cfg)
+	...
+```
+
+Basic proxy authentication is optional. Both credentials must be provided
+together, though the password may be omitted for proxies that authenticate with
+a token as the username:
+
+```python
+ProxyOptions(host="proxy-host:3128", username="user", password="secret")
+```
+
+The structure of the YAML file which can be used to construct the Options is as
+follows:
+
+```yaml
+host: "localhost:7233"
+queue: "test-queue"
+namespace: "test"
+proxy:
+  host: "proxy-host:3128"
+  username: "user"
+  password: "secret"
+```
+
 ### Worker
 
 The following code shows how a Worker is created by using the original (vanilla)
@@ -213,6 +253,25 @@ from temporallib.auth import AuthOptions, GoogleAuthOptions
 from temporallib.encryption import EncryptionOptions
 async def main():
     cfg = Options(auth=AuthOptions(config=GoogleAuthOptions()))
+    client = await Client.connect(cfg)
+	...
+```
+
+### Proxy
+
+The HTTP CONNECT proxy can also be configured through environment variables. When
+set, `Options()` picks them up automatically without any extra code:
+
+```bash
+export TEMPORAL_PROXY_HOST="proxy-host:3128"
+export TEMPORAL_PROXY_USERNAME="user"      # optional
+export TEMPORAL_PROXY_PASSWORD="secret"    # optional
+```
+
+```python
+from temporallib.client import Client, Options
+async def main():
+    cfg = Options()
     client = await Client.connect(cfg)
 	...
 ```

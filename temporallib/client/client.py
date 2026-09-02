@@ -6,7 +6,7 @@ import logging
 import os
 from typing import Callable, Iterable, Mapping, Optional, Union
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client as TemporalClient
 from temporalio.client import Interceptor, OutboundInterceptor
@@ -33,6 +33,14 @@ class ProxyOptions(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="TEMPORAL_PROXY_")
 
+    @model_validator(mode="after")
+    def _validate_credentials(self) -> "ProxyOptions":
+        if self.password and not self.username:
+            raise ValueError("proxy username is required when a proxy password is set")
+        if (self.username or self.password) and not self.host:
+            raise ValueError("proxy host is required when proxy credentials are set")
+        return self
+
 
 class Options(BaseSettings):
     host: Optional[str] = None
@@ -42,7 +50,7 @@ class Options(BaseSettings):
     tls_root_cas: Optional[str] = None
     auth: Optional[AuthOptions] = None
     prometheus_port: Optional[str] = None
-    proxy: Optional[ProxyOptions] = None
+    proxy: ProxyOptions = Field(default_factory=ProxyOptions)
 
     model_config = SettingsConfigDict(env_prefix="TEMPORAL_")
 
@@ -121,8 +129,9 @@ class Client:
         if not proxy or not proxy.host:
             return None
         basic_auth = None
-        if proxy.username and proxy.password:
-            basic_auth = (proxy.username, proxy.password.get_secret_value())
+        if proxy.username:
+            password = proxy.password.get_secret_value() if proxy.password else ""
+            basic_auth = (proxy.username, password)
         return HttpConnectProxyConfig(target_host=proxy.host, basic_auth=basic_auth)
 
     @classmethod
