@@ -1,8 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from temporalio.client import Client as TemporalClient
-from temporalio.service import HttpConnectProxyConfig, ServiceClient
+from temporalio.service import ServiceClient
 
 from temporallib.auth import (
     AuthOptions,
@@ -10,7 +9,7 @@ from temporallib.auth import (
     KeyPair,
     MacaroonAuthOptions,
 )
-from temporallib.client import Client, Options, ProxyOptions
+from temporallib.client import Client, Options
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 
 
@@ -174,49 +173,18 @@ async def test_connect_google_env_variables(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_connect_options_proxy_forwarded(monkeypatch):
-    connect_mock = AsyncMock(return_value=MagicMock())
-    monkeypatch.setattr(TemporalClient, "connect", connect_mock)
-    opts = Options(
-        host="test",
-        namespace="test namespace",
-        proxy=ProxyOptions(host="proxy:3128"),
-    )
-
-    await Client.connect(opts)
-
-    cfg = connect_mock.call_args.kwargs["http_connect_proxy_config"]
-    assert isinstance(cfg, HttpConnectProxyConfig)
-    assert cfg.target_host == "proxy:3128"
-    assert cfg.basic_auth is None
-
-
-@pytest.mark.asyncio
-async def test_connect_options_proxy_with_basic_auth(monkeypatch):
-    connect_mock = AsyncMock(return_value=MagicMock())
-    monkeypatch.setattr(TemporalClient, "connect", connect_mock)
-    opts = Options(
-        host="test",
-        namespace="test namespace",
-        proxy=ProxyOptions(host="proxy:3128", username="user", password="secret"),
-    )
-
-    await Client.connect(opts)
-
-    cfg = connect_mock.call_args.kwargs["http_connect_proxy_config"]
-    assert cfg.target_host == "proxy:3128"
-    assert cfg.basic_auth == ("user", "secret")
-
-
-@pytest.mark.asyncio
 async def test_connect_no_proxy(monkeypatch):
+    monkeypatch.setenv("TEMPORAL_HOST", "test")
+    monkeypatch.setenv("TEMPORAL_NAMESPACE", "test namespace")
     connect_mock = AsyncMock(return_value=MagicMock())
-    monkeypatch.setattr(TemporalClient, "connect", connect_mock)
-    opts = Options(host="test", namespace="test namespace")
+    monkeypatch.setattr(ServiceClient, "connect", connect_mock)
+
+    opts = Options()
 
     await Client.connect(opts)
 
-    assert connect_mock.call_args.kwargs["http_connect_proxy_config"] is None
+    config = connect_mock.call_args.args[0]
+    assert config.http_connect_proxy_config is None
 
 
 @pytest.mark.asyncio
@@ -228,14 +196,14 @@ async def test_connect_proxy_from_env(monkeypatch):
     monkeypatch.setenv("TEMPORAL_PROXY_USERNAME", "user")
     monkeypatch.setenv("TEMPORAL_PROXY_PASSWORD", "secret")
     connect_mock = AsyncMock(return_value=MagicMock())
-    monkeypatch.setattr(TemporalClient, "connect", connect_mock)
+    monkeypatch.setattr(ServiceClient, "connect", connect_mock)
 
     opts = Options()
 
     await Client.connect(opts)
 
     assert opts.proxy.host == "proxy:3128"
-    cfg = connect_mock.call_args.kwargs["http_connect_proxy_config"]
+    cfg = connect_mock.call_args.args[0].http_connect_proxy_config
     assert cfg.target_host == "proxy:3128"
     assert cfg.basic_auth == ("user", "secret")
 
@@ -246,12 +214,12 @@ async def test_connect_proxy_host_only_from_env(monkeypatch):
     monkeypatch.setenv("TEMPORAL_NAMESPACE", "test namespace")
     monkeypatch.setenv("TEMPORAL_PROXY_HOST", "proxy:3128")
     connect_mock = AsyncMock(return_value=MagicMock())
-    monkeypatch.setattr(TemporalClient, "connect", connect_mock)
+    monkeypatch.setattr(ServiceClient, "connect", connect_mock)
 
     opts = Options()
 
     await Client.connect(opts)
 
-    cfg = connect_mock.call_args.kwargs["http_connect_proxy_config"]
+    cfg = connect_mock.call_args.args[0].http_connect_proxy_config
     assert cfg.target_host == "proxy:3128"
     assert cfg.basic_auth is None
