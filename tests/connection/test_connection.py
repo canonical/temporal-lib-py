@@ -10,8 +10,7 @@ from temporallib.auth import (
     KeyPair,
     MacaroonAuthOptions,
 )
-from temporallib.client import Client, Options
-from temporallib.client.client import ProxyOptions
+from temporallib.client import Client, Options, ProxyOptions
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 
 
