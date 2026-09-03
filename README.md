@@ -217,6 +217,25 @@ async def main():
 	...
 ```
 
+### Proxy
+
+The HTTP CONNECT proxy can also be configured through environment variables. When
+set, `Options()` picks them up automatically without any extra code:
+
+```bash
+export TEMPORAL_PROXY_HOST="proxy-host:3128"
+export TEMPORAL_PROXY_USERNAME="user"      # optional
+export TEMPORAL_PROXY_PASSWORD="secret"    # optional
+```
+
+```python
+from temporallib.client import Client, Options
+async def main():
+    cfg = Options()
+    client = await Client.connect(cfg)
+	...
+```
+
 ## Samples
 
 More examples of workflows using this library can be found here:

@@ -6,18 +6,40 @@ import logging
 import os
 from typing import Callable, Iterable, Mapping, Optional, Union
 
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client as TemporalClient
 from temporalio.client import Interceptor, OutboundInterceptor
 from temporalio.common import QueryRejectCondition
 from temporalio.converter import DataConverter, default
 from temporalio.runtime import PrometheusConfig, Runtime, TelemetryConfig
-from temporalio.service import KeepAliveConfig, RetryConfig, TLSConfig
+from temporalio.service import (
+    HttpConnectProxyConfig,
+    KeepAliveConfig,
+    RetryConfig,
+    TLSConfig,
+)
 
 from temporallib.auth import AuthHeaderProvider, AuthOptions
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 
 logging.basicConfig(level=logging.INFO)
+
+
+class ProxyOptions(BaseSettings):
+    host: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[SecretStr] = None
+
+    model_config = SettingsConfigDict(env_prefix="TEMPORAL_PROXY_")
+
+    @model_validator(mode="after")
+    def _validate_credentials(self) -> "ProxyOptions":
+        if self.password and not self.username:
+            raise ValueError("proxy username is required when a proxy password is set")
+        if (self.username or self.password) and not self.host:
+            raise ValueError("proxy host is required when proxy credentials are set")
+        return self
 
 
 class Options(BaseSettings):
@@ -28,6 +50,7 @@ class Options(BaseSettings):
     tls_root_cas: Optional[str] = None
     auth: Optional[AuthOptions] = None
     prometheus_port: Optional[str] = None
+    proxy: ProxyOptions = Field(default_factory=ProxyOptions)
 
     model_config = SettingsConfigDict(env_prefix="TEMPORAL_")
 
@@ -98,6 +121,18 @@ class Client:
         auth_header_provider = AuthHeaderProvider(auth)
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, auth_header_provider.get_headers)
+
+    @classmethod
+    def _build_proxy_config(
+        self, proxy: ProxyOptions
+    ) -> Optional[HttpConnectProxyConfig]:
+        if not proxy or not proxy.host:
+            return None
+        basic_auth = None
+        if proxy.username:
+            password = proxy.password.get_secret_value() if proxy.password else ""
+            basic_auth = (proxy.username, password)
+        return HttpConnectProxyConfig(target_host=proxy.host, basic_auth=basic_auth)
 
     @classmethod
     async def _cancel_reconnect_task(self) -> None:
@@ -189,6 +224,7 @@ class Client:
         self._lazy = lazy
         self._runtime = runtime
         self._keep_alive_config = keep_alive_config
+        self._http_connect_proxy_config = self._build_proxy_config(client_opt.proxy)
 
         if client_opt.auth:
             self._rpc_metadata.update(await self._get_auth_headers(client_opt.auth))
@@ -224,6 +260,7 @@ class Client:
             lazy=self._lazy,
             runtime=self._runtime,
             keep_alive_config=self._keep_alive_config,
+            http_connect_proxy_config=self._http_connect_proxy_config,
         )
 
         # Start reconnect loop in background and keep a reference

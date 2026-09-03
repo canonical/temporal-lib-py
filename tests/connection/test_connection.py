@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from temporalio.service import ServiceClient
@@ -170,3 +170,56 @@ async def test_connect_google_env_variables(monkeypatch):
     assert isinstance(opts.auth, AuthOptions)
     assert isinstance(opts.auth.config, GoogleAuthOptions)
     assert isinstance(client.data_converter.payload_codec, EncryptionPayloadCodec)
+
+
+@pytest.mark.asyncio
+async def test_connect_no_proxy(monkeypatch):
+    monkeypatch.setenv("TEMPORAL_HOST", "test")
+    monkeypatch.setenv("TEMPORAL_NAMESPACE", "test namespace")
+    connect_mock = AsyncMock(return_value=MagicMock())
+    monkeypatch.setattr(ServiceClient, "connect", connect_mock)
+
+    opts = Options()
+
+    await Client.connect(opts)
+
+    config = connect_mock.call_args.args[0]
+    assert config.http_connect_proxy_config is None
+
+
+@pytest.mark.asyncio
+async def test_connect_proxy_from_env(monkeypatch):
+    monkeypatch.setenv("TEMPORAL_HOST", "test")
+    monkeypatch.setenv("TEMPORAL_QUEUE", "test queue")
+    monkeypatch.setenv("TEMPORAL_NAMESPACE", "test namespace")
+    monkeypatch.setenv("TEMPORAL_PROXY_HOST", "proxy:3128")
+    monkeypatch.setenv("TEMPORAL_PROXY_USERNAME", "user")
+    monkeypatch.setenv("TEMPORAL_PROXY_PASSWORD", "secret")
+    connect_mock = AsyncMock(return_value=MagicMock())
+    monkeypatch.setattr(ServiceClient, "connect", connect_mock)
+
+    opts = Options()
+
+    await Client.connect(opts)
+
+    assert opts.proxy.host == "proxy:3128"
+    cfg = connect_mock.call_args.args[0].http_connect_proxy_config
+    assert cfg.target_host == "proxy:3128"
+    assert cfg.basic_auth == ("user", "secret")
+
+
+@pytest.mark.asyncio
+async def test_connect_proxy_host_only_from_env(monkeypatch):
+    monkeypatch.setenv("TEMPORAL_HOST", "test")
+    monkeypatch.setenv("TEMPORAL_NAMESPACE", "test namespace")
+    monkeypatch.setenv("TEMPORAL_PROXY_HOST", "proxy:3128")
+    connect_mock = AsyncMock(return_value=MagicMock())
+    monkeypatch.setattr(ServiceClient, "connect", connect_mock)
+
+    opts = Options()
+
+    await Client.connect(opts)
+
+    cfg = connect_mock.call_args.args[0].http_connect_proxy_config
+    assert cfg.target_host == "proxy:3128"
+    assert cfg.basic_auth is None
