@@ -157,6 +157,19 @@ await worker.run()
 Note that you can optionally enable parameter redaction to hide event parameters
 that are sent to Sentry.
 
+#### Fatal errors and the force-exit timer
+
+When the worker hits a fatal error (e.g. `PermissionDenied` while polling), the
+reconnect loop is stopped and a force-exit timer is armed. If the process has not exited
+within `graceful_shutdown_timeout + fatal_exit_timeout` (default 60 seconds), it is force-killed with exit
+code 1 (after flushing Sentry and logs) so a supervisor can restart it, since
+the SDK's shutdown can hang. Pass `fatal_exit_timeout=None` to disable this,
+e.g. when embedding the worker in a larger process.
+
+Auth token fetches are logged with a short non-reversible fingerprint (and the
+expiry, for Google), and the last token's fingerprint and age are logged on a
+fatal error. The token itself is never logged.
+
 ## Initializing with Environment Variables
 
 ### Candid

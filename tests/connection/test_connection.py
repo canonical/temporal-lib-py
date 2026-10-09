@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic import ValidationError
 from temporalio.service import ServiceClient
 
 from temporallib.auth import (
@@ -223,3 +224,44 @@ async def test_connect_proxy_host_only_from_env(monkeypatch):
     cfg = connect_mock.call_args.args[0].http_connect_proxy_config
     assert cfg.target_host == "proxy:3128"
     assert cfg.basic_auth is None
+
+
+@pytest.mark.asyncio
+async def test_connect_default_token_refresh_interval(monkeypatch):
+    monkeypatch.setenv("TEMPORAL_HOST", "test")
+    monkeypatch.setenv("TEMPORAL_NAMESPACE", "test namespace")
+    monkeypatch.setattr(ServiceClient, "connect", AsyncMock(return_value=MagicMock()))
+
+    opts = Options()
+
+    await Client.connect(opts)
+
+    assert Client._token_refresh_interval == 1800
+
+
+@pytest.mark.asyncio
+async def test_connect_custom_token_refresh_interval(monkeypatch):
+    monkeypatch.setenv("TEMPORAL_HOST", "test")
+    monkeypatch.setenv("TEMPORAL_NAMESPACE", "test namespace")
+    monkeypatch.setattr(ServiceClient, "connect", AsyncMock(return_value=MagicMock()))
+
+    opts = Options(token_refresh_interval=1000)
+
+    await Client.connect(opts)
+
+    assert Client._token_refresh_interval == 1000
+
+
+def test_token_refresh_interval_rejects_above_max():
+    with pytest.raises(ValidationError):
+        Options(token_refresh_interval=3601)
+
+
+def test_token_refresh_interval_rejects_non_positive():
+    with pytest.raises(ValidationError):
+        Options(token_refresh_interval=0)
+
+
+def test_token_refresh_interval_accepts_max():
+    opts = Options(token_refresh_interval=3600)
+    assert opts.token_refresh_interval == 3600

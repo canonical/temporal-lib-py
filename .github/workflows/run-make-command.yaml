@@ -1,0 +1,71 @@
+name: Run "make" commands
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version to use
+        type: string
+        default: "3.12"
+        required: false
+      install-command:
+        description: make install command to run, if there is one
+        type: string
+        required: false
+        default: ""
+      command:
+        description: make command to run
+        type: string
+        required: true
+      timeout-minutes:
+        description: Timeout in minutes, job will fail if it takes longer
+        type: number
+        default: 10
+    secrets:
+      github-token:
+        description: GitHub token to use, if extra permissions are needed
+        required: false
+
+jobs:
+  run-jobs-in-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          submodules: recursive
+          token: ${{ secrets.github-token || github.token }}  # zizmor: ignore[secrets-outside-env]
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install Poetry
+        run: |
+          pip install poetry
+
+      - name: Install dependencies
+        if: ${{ inputs.install-command != '' }}
+        run: |
+          if command -v make >/dev/null 2>&1 && make -n ${MAKE_INSTALL_COMMAND} >/dev/null 2>&1; then
+            make ${MAKE_INSTALL_COMMAND}
+          else
+            echo "Skipping '${MAKE_INSTALL_COMMAND}' command in (make ${MAKE_INSTALL_COMMAND} not defined)"
+            exit 1
+          fi
+        env:
+          MAKE_INSTALL_COMMAND: ${{ inputs.install-command }}
+
+      - name: Run command using make
+        run: |
+          if command -v make >/dev/null 2>&1 && make -n ${MAKE_COMMAND} >/dev/null 2>&1; then
+            make ${MAKE_COMMAND}
+          else
+            echo "Skipping '${MAKE_COMMAND}' command in (make ${MAKE_COMMAND} not defined)"
+            exit 1
+          fi
+        env:
+          MAKE_COMMAND: ${{ inputs.command }}

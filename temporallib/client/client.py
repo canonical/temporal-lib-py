@@ -4,6 +4,7 @@ import asyncio
 import dataclasses
 import logging
 import os
+import time
 from typing import Callable, Iterable, Mapping, Optional, Union
 
 from pydantic import Field, SecretStr, model_validator
@@ -21,6 +22,7 @@ from temporalio.service import (
 )
 
 from temporallib.auth import AuthHeaderProvider, AuthOptions
+from temporallib.auth.auth import token_fingerprint
 from temporallib.encryption import EncryptionOptions, EncryptionPayloadCodec
 
 logging.basicConfig(level=logging.INFO)
@@ -51,6 +53,8 @@ class Options(BaseSettings):
     auth: Optional[AuthOptions] = None
     prometheus_port: Optional[str] = None
     proxy: ProxyOptions = Field(default_factory=ProxyOptions)
+    # Default 30m, min 15m, max 60m
+    token_refresh_interval: int = Field(default=1800, ge=900, le=3600)
 
     model_config = SettingsConfigDict(env_prefix="TEMPORAL_")
 
@@ -83,33 +87,47 @@ class Client:
     _is_stop_token_refresh = False
     _initial_backoff = 60
     _max_backoff = 600
-    _token_refresh_interval = 3300
+    _token_refresh_interval: Optional[int] = None
+    _last_token_fingerprint: Optional[str] = None
+    _last_token_fetched_at: Optional[float] = None
     _reconnect_task: asyncio.Task | None = None
 
     @classmethod
-    def __del__(self):
-        self._is_stop_token_refresh = True
+    async def stop_reconnect(cls) -> None:
+        """Stop and await the reconnect loop.
+
+        This method sets the stop flag and cancels the background reconnect task
+        (if any), awaiting its completion. Safe to call multiple times and during/after
+        shutdown. Suitable for use in on_fatal_error callbacks.
+        """
+        logging.info("Stopping Client reconnect loop before worker shutdown...")
+        await cls._cancel_reconnect_task()
+        logging.info("Reconnect loop successfully stopped.")
 
     @classmethod
-    def disconnect(self):
-        """Stops the reconnect loop and closes the client.
+    def disconnect(cls) -> None:
+        """Deprecated: Stops the reconnect loop and closes the client.
 
-        This method cancels the background reconnect task (if any) and awaits its
-        completion so it doesn't remain pending. It also clears references to the
-        underlying client and runtime.
+        This method is synchronous for backward compatibility. For cleaner shutdown,
+        prefer the async stop_reconnect() method or call it via asyncio.run_coroutine_threadsafe().
+        This method signals the reconnect loop to stop and attempts to cancel any
+        background task, but does not await its completion. To guarantee the task
+        is stopped, use stop_reconnect() instead.
+
+        This method clears references to the underlying client and runtime.
         """
         # Signal reconnect loop to stop
-        self._is_stop_token_refresh = True
+        cls._is_stop_token_refresh = True
 
-        # Cancel the background reconnect task if it exists
-        if self._reconnect_task:
-            self._reconnect_task.cancel()
-            self._reconnect_task = None
+        # Cancel the background reconnect task if it exists (but don't await)
+        if cls._reconnect_task:
+            cls._reconnect_task.cancel()
+            cls._reconnect_task = None
 
-        if hasattr(self, "_client"):
-            del self._client
-        if hasattr(self, "_runtime"):
-            del self._runtime
+        if hasattr(cls, "_client"):
+            del cls._client
+        if hasattr(cls, "_runtime"):
+            del cls._runtime
 
     @classmethod
     def instance(self) -> Optional[TemporalClient]:
@@ -120,7 +138,39 @@ class Client:
     async def _get_auth_headers(self, auth: AuthOptions) -> Mapping[str, str]:
         auth_header_provider = AuthHeaderProvider(auth)
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, auth_header_provider.get_headers)
+        headers = await loop.run_in_executor(None, auth_header_provider.get_headers)
+        self._record_token(headers)
+        return headers
+
+    @classmethod
+    def _record_token(self, headers: Mapping[str, str]) -> None:
+        value = headers.get("authorization")
+        if not value:
+            return
+        self._last_token_fingerprint = token_fingerprint(value)
+        self._last_token_fetched_at = time.time()
+        logging.info(
+            "Auth token refreshed: fingerprint=%s next_refresh_in=%ss",
+            self._last_token_fingerprint,
+            self._token_refresh_interval,
+        )
+
+    @classmethod
+    def log_token_state_on_fatal_error(self, exc: BaseException) -> None:
+        """Log which token the worker was last given and how old it is, to tell
+        a stale token from one rejected while still fresh."""
+        if self._last_token_fetched_at is None:
+            logging.error("Fatal error with no auth token on record: %r", exc)
+            return
+        logging.error(
+            "Fatal error; last auth token fingerprint=%s age=%.0fs refresh_interval=%ss "
+            "reconnect_loop_active=%s error=%r",
+            self._last_token_fingerprint,
+            time.time() - self._last_token_fetched_at,
+            self._token_refresh_interval,
+            self._reconnect_task is not None and not self._reconnect_task.done(),
+            exc,
+        )
 
     @classmethod
     def _build_proxy_config(
@@ -157,14 +207,20 @@ class Client:
         """
         Reconnects to the Temporal server periodically when the token expires.
         """
+        if self._token_refresh_interval is None:
+            raise RuntimeError(
+                "Client.reconnect_loop() started without Client.connect() having "
+                "run; _token_refresh_interval is unset."
+            )
+
         backoff = self._initial_backoff
         while not self._is_stop_token_refresh:
             try:
                 await self._reconnect()
                 backoff = self._initial_backoff
-                await asyncio.sleep(
-                    self._token_refresh_interval
-                )  # Refresh tokens every ~55 minutes (OAuth tokens last 60 minutes)
+                # Refresh tokens according to the configured interval
+                # OAuth tokens last 60 minutes
+                await asyncio.sleep(self._token_refresh_interval)
                 logging.info("Refreshing token and reconnecting to Temporal server...")
             except Exception as e:
                 logging.error(f"Failed to reconnect to Temporal server: {e}")
@@ -225,6 +281,7 @@ class Client:
         self._runtime = runtime
         self._keep_alive_config = keep_alive_config
         self._http_connect_proxy_config = self._build_proxy_config(client_opt.proxy)
+        self._token_refresh_interval = client_opt.token_refresh_interval
 
         if client_opt.auth:
             self._rpc_metadata.update(await self._get_auth_headers(client_opt.auth))

@@ -93,3 +93,40 @@ def test_get_google_headers(monkeypatch):
     )
     header = auth_provider.get_headers()
     assert len(header["authorization"]) > 0
+
+
+def test_google_and_client_log_matching_fingerprints(monkeypatch, caplog):
+    import logging
+    import re
+
+    from temporallib.client.client import Client
+
+    credentials = MagicMock()
+    credentials.valid = True
+    credentials.token = "secret-token-value"
+    credentials.expiry = None
+    credentials.service_account_email = "test@example.com"
+    monkeypatch.setattr(
+        service_account.Credentials,
+        "from_service_account_info",
+        lambda cfg, scopes: credentials,
+    )
+
+    auth_options = AuthOptions(
+        provider="google",
+        config=GoogleAuthOptions(
+            project_id="test",
+            private_key_id="test",
+            private_key="test",
+            client_email="test",
+            client_id="test",
+        ),
+    )
+    with caplog.at_level(logging.INFO):
+        headers = AuthHeaderProvider(auth_options).get_headers()
+        Client._record_token(headers)
+
+    fingerprints = re.findall(r"fingerprint=(\w+)", caplog.text)
+    assert len(fingerprints) == 2
+    assert fingerprints[0] == fingerprints[1]
+    assert "secret-token-value" not in caplog.text

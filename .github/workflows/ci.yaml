@@ -1,0 +1,30 @@
+name: Pull Request CI
+
+on:
+  pull_request:
+    branches: [ 'main' ]
+
+jobs:
+  lint:
+    name: Run Linter
+    uses: ./.github/workflows/run-make-command.yaml
+    with:
+      command: lint
+      install-command: install-dev
+      timeout-minutes: 5
+
+  unit-test:
+    name: Unit Tests
+    uses: ./.github/workflows/run-make-command.yaml
+    with:
+      command: test
+      install-command: install-dev
+      timeout-minutes: 5
+
+  integration-test:
+    name: Integration Tests
+    uses: ./.github/workflows/run-make-command.yaml
+    with:
+      command: integration-test
+      install-command: install-dev
+      timeout-minutes: 10

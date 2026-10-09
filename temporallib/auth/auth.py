@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
-from dataclasses import dataclass
+import logging
 from typing import Mapping, Optional, Union
 
 import google.auth.transport.requests
@@ -11,8 +12,32 @@ from google.oauth2 import service_account
 from macaroonbakery import bakery, httpbakery
 from macaroonbakery.bakery import Macaroon, b64decode, macaroon_to_dict
 from macaroonbakery.httpbakery.agent import Agent, AgentInteractor, AuthInfo
-from pydantic import BaseModel, Field
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
+
+
+def token_fingerprint(value: str) -> str:
+    """Short, non-reversible identifier for a credential, safe to log."""
+    return hashlib.sha256(value.encode()).hexdigest()[:8]
+
+
+def _log_google_token(credentials) -> None:
+    # Diagnostics only: must never break authentication.
+    if not credentials or not credentials.token:
+        logger.debug("Could not log Google token details: no credentials or token")
+        return
+    try:
+        auth_header = f"Bearer {credentials.token}"
+        logger.info(
+            "Fetched Google token: fingerprint=%s expiry=%s client_email=%s",
+            token_fingerprint(auth_header),
+            credentials.expiry.isoformat() if credentials.expiry else None,
+            credentials.service_account_email,
+        )
+    except Exception:
+        logger.debug("Could not log Google token details", exc_info=True)
 
 
 class MacaroonAuthOptions(BaseSettings):
@@ -94,6 +119,8 @@ class AuthHeaderProvider:
 
             if not credentials.valid:
                 credentials.refresh(auth_req)
+
+            _log_google_token(credentials)
 
             return {"authorization": f"Bearer {credentials.token}"}
         except Exception as err:
